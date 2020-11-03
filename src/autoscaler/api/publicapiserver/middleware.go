@@ -146,3 +146,13 @@ func (mw *Middleware) isValidUserToken(userToken string) bool {
 
 	return true
 }
+
+func (mw *Middleware) SetSecureHeader(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Xss-Protection", "1; mode=block")
+		w.Header().Set("Strict-Transport-Security", "max-age=15552000; includeSubDomains")
+		next.ServeHTTP(w, r) 
+	})
+}

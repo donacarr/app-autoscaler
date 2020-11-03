@@ -33,12 +33,14 @@ func NewPublicApiServer(logger lager.Logger, conf *config.Config, policydb db.Po
 	httpStatusCollectMiddleware := healthendpoint.NewHTTPStatusCollectMiddleware(httpStatusCollector)
 	r := routes.ApiOpenRoutes()
 	r.Use(httpStatusCollectMiddleware.Collect)
+	r.Use(mw.SetSecureHeader)
 	r.Get(routes.PublicApiInfoRouteName).Handler(VarsFunc(pah.GetApiInfo))
 	r.Get(routes.PublicApiHealthRouteName).Handler(VarsFunc(pah.GetHealth))
 
 	rp := routes.ApiRoutes()
 	rp.Use(rateLimiterMiddleware.CheckRateLimit)
 	rp.Use(mw.Oauth)
+	rp.Use(mw.SetSecureHeader)
 	rp.Use(httpStatusCollectMiddleware.Collect)
 	rp.Get(routes.PublicApiScalingHistoryRouteName).Handler(VarsFunc(pah.GetScalingHistories))
 	rp.Get(routes.PublicApiMetricsHistoryRouteName).Handler(VarsFunc(pah.GetInstanceMetricsHistories))
@@ -47,6 +49,7 @@ func NewPublicApiServer(logger lager.Logger, conf *config.Config, policydb db.Po
 	rpolicy := routes.ApiPolicyRoutes()
 	rpolicy.Use(rateLimiterMiddleware.CheckRateLimit)
 	rpolicy.Use(mw.Oauth)
+	rpolicy.Use(mw.SetSecureHeader)
 	if !conf.UseBuildInMode {
 		rpolicy.Use(mw.CheckServiceBinding)
 	}
@@ -61,6 +64,7 @@ func NewPublicApiServer(logger lager.Logger, conf *config.Config, policydb db.Po
 		rcredential.Use(mw.RejectCredentialOperationInServiceOffering)
 	}
 	rcredential.Use(mw.Oauth)
+	rcredential.Use(mw.SetSecureHeader)
 	rcredential.Use(httpStatusCollectMiddleware.Collect)
 	rcredential.Get(routes.PublicApiCreateCredentialRouteName).Handler(VarsFunc(pah.CreateCredential))
 	rcredential.Get(routes.PublicApiDeleteCredentialRouteName).Handler(VarsFunc(pah.DeleteCredential))
