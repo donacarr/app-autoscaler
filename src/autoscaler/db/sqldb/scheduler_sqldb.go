@@ -39,7 +39,6 @@ func NewSchedulerSQLDB(dbConfig db.DatabaseConfig, logger lager.Logger) (*Schedu
 	sqldb.SetConnMaxLifetime(dbConfig.ConnectionMaxLifetime)
 	sqldb.SetMaxIdleConns(dbConfig.MaxIdleConnections)
 	sqldb.SetMaxOpenConns(dbConfig.MaxOpenConnections)
-	sqldb.SetConnMaxIdleTime(dbConfig.ConnectionMaxIdleTime)
 
 	return &SchedulerSQLDB{
 		dbConfig: dbConfig,

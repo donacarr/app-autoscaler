@@ -38,7 +38,6 @@ var _ = Describe("AppMetricSQLDB", func() {
 			MaxOpenConnections:    10,
 			MaxIdleConnections:    5,
 			ConnectionMaxLifetime: 10 * time.Second,
-			ConnectionMaxIdleTime: 10 * time.Second,
 		}
 		testMetricName = "Test-Metric-Name"
 

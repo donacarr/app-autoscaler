@@ -44,7 +44,6 @@ var _ = Describe("InstancemetricsSqldb", func() {
 			MaxOpenConnections:    10,
 			MaxIdleConnections:    5,
 			ConnectionMaxLifetime: 10 * time.Second,
-			ConnectionMaxIdleTime: 10 * time.Second,
 		}
 		instanceIndex = -1
 		testMetricName = "TestMetricType"
