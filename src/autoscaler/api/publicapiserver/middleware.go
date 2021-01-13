@@ -153,6 +153,7 @@ func (mw *Middleware) SetSecureHeader(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Xss-Protection", "1; mode=block")
 		w.Header().Set("Strict-Transport-Security", "max-age=15552000; includeSubDomains")
+		w.Header().Set("Content-Security-Policy","default-src 'self'")
 		next.ServeHTTP(w, r) 
 	})
 }
