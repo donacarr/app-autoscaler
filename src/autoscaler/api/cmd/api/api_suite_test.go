@@ -204,8 +204,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 })
 
 var _ = SynchronizedAfterSuite(func() {
-	os.Remove(configFile.Name())
-	ccServer.Close()
+	if configFile != nil {
+		_ = os.Remove(configFile.Name())
+	}
+	if ccServer != nil {
+		ccServer.Close()
+	}
 }, func() {
 	gexec.CleanupBuildArtifacts()
 })
