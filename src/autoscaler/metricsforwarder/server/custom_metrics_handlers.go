@@ -6,9 +6,13 @@ import (
 	"autoscaler/models"
 	"database/sql"
 	"encoding/json"
+	"encoding/pem"
+	"crypto/x509"
 	"errors"
+	"github.com/blend/go-sdk/envoyutil"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"code.cloudfoundry.org/cfhttp/handlers"
@@ -37,7 +41,59 @@ func NewCustomMetricsHandler(logger lager.Logger, metricForwarder forwarder.Metr
 	}
 }
 
-func (mh *CustomMetricsHandler) PublishMetrics(w http.ResponseWriter, r *http.Request, vars map[string]string) {
+func (mh *CustomMetricsHandler) XFCCHeader(w http.ResponseWriter, r *http.Request, appID string) (bool, error) {
+	XFCCCert, err := envoyutil.ParseXFCC(r.Header.Get("X-Forwarded-Client-Cert"))
+
+	if err != nil {
+		mh.logger.Error("xfcc-cert-malformed:", err)
+		handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
+			Code:    "Authorization-Failure-Error",
+			Message: "Malformed Certificate"})
+		return false, err
+	}
+
+	block, _ := pem.Decode([]byte(XFCCCert[0].Cert))
+	if block == nil {
+		mh.logger.Error("xfcc-decoding-error:", err)
+		handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
+			Code:    "Decoding-Error",
+			Message: "Decoding the XFCC header failed"})
+		return false, err
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		mh.logger.Error("xfcc-parsing-error:", err)
+		handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
+			Code:    "Parsing-Error",
+			Message: "Parsing the XFCC header failed"})
+		return false, err
+	}
+
+	var certAppId string
+	if strings.Contains(cert.Subject.OrganizationalUnit[0], "app-id:") {
+		certAppId = strings.Split(cert.Subject.OrganizationalUnit[0], ":")[1]
+	} else {
+		mh.logger.Error("xfcc-format-error:", err)
+		handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
+			Code:    "XFCC-Format-Error",
+			Message: "XFCC header did not contain an app id"})
+		return false, err
+	}
+
+	if appID != certAppId {
+		mh.logger.Info("error-certificate-wrong")
+		handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
+			Code:    "Authorization-Failure-Error",
+			Message: "AppID in certificate is not valid"})
+		w.WriteHeader(http.StatusForbidden)
+		return false, errors.New("AppID in certificate is not valid")
+	}
+
+	return true, nil
+}
+
+func (mh *CustomMetricsHandler) BasicAuth(w http.ResponseWriter, r *http.Request, appID string) (bool, error) {
 	w.Header().Set("Content-Type", "application/json")
 
 	username, password, authOK := r.BasicAuth()
@@ -47,12 +103,12 @@ func (mh *CustomMetricsHandler) PublishMetrics(w http.ResponseWriter, r *http.Re
 		handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
 			Code:    "Authorization-Failure-Error",
 			Message: "Incorrect credentials. Basic authorization is not used properly"})
-		return
+		return false, errors.New("Incorrect credentials. Basic authorization is not used properly")
 	}
 
 	var isValid bool
 
-	appID := vars["appid"]
+
 	res, found := mh.credentialCache.Get(appID)
 	if found {
 		// Credentials found in cache
@@ -71,13 +127,13 @@ func (mh *CustomMetricsHandler) PublishMetrics(w http.ResponseWriter, r *http.Re
 				handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
 					Code:    "Authorization-Failure-Error",
 					Message: "Incorrect credentials. Basic authorization credential does not match"})
-				return
+				return false, err
 			}
 			mh.logger.Error("error-during-getting-credentials-from-policyDB", err, lager.Data{"appid": appID})
 			handlers.WriteJSONResponse(w, http.StatusInternalServerError, models.ErrorResponse{
 				Code:    "Interal-Server-Error",
 				Message: "Error getting binding crededntials from policyDB"})
-			return
+			return false, err
 		}
 		// update the cache
 		mh.credentialCache.Set(appID, credentials, mh.cacheTTL)
@@ -89,51 +145,73 @@ func (mh *CustomMetricsHandler) PublishMetrics(w http.ResponseWriter, r *http.Re
 			handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
 				Code:    "Authorization-Failure-Error",
 				Message: "Incorrect credentials. Basic authorization credential does not match"})
-			return
+			return false, err
 		}
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		mh.logger.Error("error-reading-request-body", err, lager.Data{"body": r.Body})
-		handlers.WriteJSONResponse(w, http.StatusInternalServerError, models.ErrorResponse{
-			Code:    "Interal-Server-Error",
-			Message: "Error reading custom metrics request body"})
-		return
+	return true, nil
+}
+
+func (mh *CustomMetricsHandler) VerifyCredentials(w http.ResponseWriter, r *http.Request, appID string) (bool, error) {
+	if r.Header.Get("X-Forwarded-Client-Cert") != "" {
+		return mh.XFCCHeader(w, r, appID)
+	} else {
+		return mh.BasicAuth(w, r, appID)
 	}
-	var metricsConsumer *models.MetricsConsumer
-	err = json.Unmarshal(body, &metricsConsumer)
+}
+
+func (mh *CustomMetricsHandler) PublishMetrics(w http.ResponseWriter, r *http.Request, vars map[string]string) {
+	appID := vars["appid"]
+	granted, err := mh.VerifyCredentials(w, r, appID)
+
 	if err != nil {
-		mh.logger.Error("error-unmarshaling-metrics", err, lager.Data{"body": r.Body})
-		handlers.WriteJSONResponse(w, http.StatusBadRequest, models.ErrorResponse{
-			Code:    "Bad-Request",
-			Message: "Error unmarshaling custom metrics request body"})
-		return
-	}
-	err = mh.validateCustomMetricTypes(appID, metricsConsumer)
-	if err != nil {
-		mh.logger.Error("failed-validating-metrictypes", err, lager.Data{"metrics": metricsConsumer})
-		handlers.WriteJSONResponse(w, http.StatusBadRequest, models.ErrorResponse{
-			Code:    "Bad-Request",
-			Message: err.Error()})
 		return
 	}
 
-	metrics := mh.getMetrics(appID, metricsConsumer)
+	if granted {
 
-	if len(metrics) <= 0 {
-		mh.logger.Debug("failed-parsing-custom-metrics-request-body", lager.Data{"metrics": metrics})
-		handlers.WriteJSONResponse(w, http.StatusBadRequest, models.ErrorResponse{
-			Code:    "Bad-Request",
-			Message: "Error parsing request body"})
-		return
-	}
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			mh.logger.Error("error-reading-request-body", err, lager.Data{"body": r.Body})
+			handlers.WriteJSONResponse(w, http.StatusInternalServerError, models.ErrorResponse{
+				Code:    "Interal-Server-Error",
+				Message: "Error reading custom metrics request body"})
+			return
+		}
+		var metricsConsumer *models.MetricsConsumer
+		err = json.Unmarshal(body, &metricsConsumer)
+		if err != nil {
+			mh.logger.Error("error-unmarshaling-metrics", err, lager.Data{"body": r.Body})
+			handlers.WriteJSONResponse(w, http.StatusBadRequest, models.ErrorResponse{
+				Code:    "Bad-Request",
+				Message: "Error unmarshaling custom metrics request body"})
+			return
+		}
+		err = mh.validateCustomMetricTypes(appID, metricsConsumer)
+		if err != nil {
+			mh.logger.Error("failed-validating-metrictypes", err, lager.Data{"metrics": metricsConsumer})
+			handlers.WriteJSONResponse(w, http.StatusBadRequest, models.ErrorResponse{
+				Code:    "Bad-Request",
+				Message: err.Error()})
+			return
+		}
 
-	mh.logger.Debug("custom-metrics-parsed-successfully", lager.Data{"metrics": metrics})
-	for _, metric := range metrics {
-		mh.metricForwarder.EmitMetric(metric)
+		metrics := mh.getMetrics(appID, metricsConsumer)
+
+		if len(metrics) <= 0 {
+			mh.logger.Debug("failed-parsing-custom-metrics-request-body", lager.Data{"metrics": metrics})
+			handlers.WriteJSONResponse(w, http.StatusBadRequest, models.ErrorResponse{
+				Code:    "Bad-Request",
+				Message: "Error parsing request body"})
+			return
+		}
+
+		mh.logger.Debug("custom-metrics-parsed-successfully", lager.Data{"metrics": metrics})
+		for _, metric := range metrics {
+			mh.metricForwarder.EmitMetric(metric)
+		}
+		w.WriteHeader(http.StatusOK)
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func (mh *CustomMetricsHandler) validateCredentials(username string, usernameHash string, password string, passwordHash string) bool {

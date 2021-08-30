@@ -26,6 +26,11 @@ certstrap --depot-path ${depot_path} init --passphrase '' --common-name loggrega
 mv -f ${depot_path}/loggregatorCA.crt ${depot_path}/loggregator-ca.crt
 mv -f ${depot_path}/loggregatorCA.key ${depot_path}/loggregator-ca.key
 
+# CA for local testing mTLS certs
+certstrap --depot-path ${depot_path} init --passphrase '' --common-name localCA --years "20"
+mv -f ${depot_path}/localCA.crt ${depot_path}/local-ca.crt
+mv -f ${depot_path}/localCA.key ${depot_path}/local-ca.key
+
 # metricscollector certificate
 certstrap --depot-path ${depot_path} request-cert --passphrase '' --domain metricscollector --ip 127.0.0.1
 certstrap --depot-path ${depot_path} sign metricscollector --CA autoscaler-ca --years "20"
@@ -78,4 +83,8 @@ certstrap --depot-path ${depot_path} sign metricserver_client --CA autoscaler-ca
 
 # metricsforwarder certificate for loggregator_agent
 certstrap --depot-path ${depot_path} request-cert --passphrase '' --domain metron
-certstrap --depot-path ${depot_path} sign metron --CA loggregator-ca --years "20"
+certstrap --depot-path ${depot_path} sign metron --CA local-ca --years "20"
+
+# mTLS client certificate for local testing
+certstrap --depot-path ${depot_path} request-cert --passphrase '' --domain local_client --ou "app-id:an-app-id"
+certstrap --depot-path ${depot_path} sign local_client --CA local-ca --years "20"
