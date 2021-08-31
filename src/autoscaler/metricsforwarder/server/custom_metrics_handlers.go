@@ -169,7 +169,6 @@ func (mh *CustomMetricsHandler) PublishMetrics(w http.ResponseWriter, r *http.Re
 	}
 
 	if granted {
-
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			mh.logger.Error("error-reading-request-body", err, lager.Data{"body": r.Body})
