@@ -4,7 +4,7 @@ import (
 	"autoscaler/db"
 	"autoscaler/db/sqldb"
 	"autoscaler/healthendpoint"
-	"autoscaler/helpers"
+	helpers "autoscaler/helpers"
 	"autoscaler/metricsforwarder/config"
 	"autoscaler/metricsforwarder/server"
 	"autoscaler/ratelimiter"
@@ -14,7 +14,7 @@ import (
 
 	"code.cloudfoundry.org/clock"
 	"code.cloudfoundry.org/lager"
-	"github.com/patrickmn/go-cache"
+	cache "github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/grouper"
@@ -24,6 +24,7 @@ import (
 )
 
 func main() {
+
 	var path string
 	flag.StringVar(&path, "c", "", "config file")
 	flag.Parse()

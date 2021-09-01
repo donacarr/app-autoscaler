@@ -13,7 +13,7 @@ import (
 
 	"code.cloudfoundry.org/cfhttp/handlers"
 	"code.cloudfoundry.org/lager"
-	"github.com/patrickmn/go-cache"
+	cache "github.com/patrickmn/go-cache"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -42,7 +42,7 @@ func (mh *CustomMetricsHandler) PublishMetrics(w http.ResponseWriter, r *http.Re
 
 	username, password, authOK := r.BasicAuth()
 
-	if !authOK {
+	if authOK == false {
 		mh.logger.Info("error-processing-authorizaion-header")
 		handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
 			Code:    "Authorization-Failure-Error",
@@ -66,7 +66,7 @@ func (mh *CustomMetricsHandler) PublishMetrics(w http.ResponseWriter, r *http.Re
 	if !found || !isValid {
 		credentials, err := mh.policyDB.GetCredential(appID)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if err == sql.ErrNoRows {
 				mh.logger.Error("no-credential-found-in-db", err, lager.Data{"appID": appID})
 				handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
 					Code:    "Authorization-Failure-Error",
@@ -139,7 +139,7 @@ func (mh *CustomMetricsHandler) PublishMetrics(w http.ResponseWriter, r *http.Re
 func (mh *CustomMetricsHandler) validateCredentials(username string, usernameHash string, password string, passwordHash string) bool {
 	usernameAuthErr := bcrypt.CompareHashAndPassword([]byte(usernameHash), []byte(username))
 	passwordAuthErr := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
-	if usernameAuthErr == nil && passwordAuthErr == nil { // password matching successful
+	if usernameAuthErr == nil && passwordAuthErr == nil { // password matching successfull
 		return true
 	}
 	mh.logger.Debug("failed-to-authorize-credentials")

@@ -106,10 +106,12 @@ func (a *Aggregator) startSavingAppMetric() {
 		case <-ticker.C():
 			if len(appMetricArray) > 0 {
 				go func(appMetricDB db.AppMetricDB, metrics []*models.AppMetric) {
-					_ = appMetricDB.SaveAppMetricsInBulk(metrics)
+					appMetricDB.SaveAppMetricsInBulk(metrics)
+					return
 				}(a.appMetricDB, appMetricArray)
 				appMetricArray = []*models.AppMetric{}
 			}
+
 		}
 	}
 }

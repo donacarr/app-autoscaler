@@ -10,7 +10,7 @@ import (
 	"code.cloudfoundry.org/lager"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/patrickmn/go-cache"
+	cache "github.com/patrickmn/go-cache"
 )
 
 var _ = Describe("PolicyManager", func() {

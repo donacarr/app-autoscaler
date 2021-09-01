@@ -18,7 +18,7 @@ var _ = Describe("AppManager", func() {
 		clock                     *fakeclock.FakeClock
 		appManager                *AppManager
 		logger                    lager.Logger
-		testAppIDRetrieveInterval = 5 * time.Second
+		testAppIDRetrieveInterval time.Duration = 5 * time.Second
 	)
 
 	BeforeEach(func() {

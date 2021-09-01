@@ -34,4 +34,5 @@ func (amdp AppMetricsDbPruner) Operate() {
 		amdp.logger.Error("failed-prune-appmetrics", err)
 		return
 	}
+
 }

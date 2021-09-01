@@ -5,6 +5,7 @@ import static org.junit.Assert.assertThat;
 
 import java.util.List;
 import java.util.UUID;
+
 import org.cloudfoundry.autoscaler.scheduler.entity.PolicyJsonEntity;
 import org.cloudfoundry.autoscaler.scheduler.util.TestDataDbUtil;
 import org.junit.Before;
@@ -16,25 +17,27 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class PolicyJsonDaoImplTest {
 
-  @Autowired private PolicyJsonDao policyJsonDao;
+public class PolicyJsonDaoImplTest{
 
-  @Autowired private TestDataDbUtil testDataDbUtil;
-
-  @Before
-  public void before() throws Exception {
-    String appId = "the_app_id";
-    String guid = UUID.randomUUID().toString();
-    testDataDbUtil.cleanupData();
-    testDataDbUtil.insertPolicyJson(appId, guid);
-  }
-
-  @Test
-  public void testGetAllPolicies() {
-    List<PolicyJsonEntity> policyJsonList = policyJsonDao.getAllPolicies();
-    assertThat("It should have 1 policy_json", policyJsonList.size(), is(1));
-    PolicyJsonEntity entity = policyJsonList.get(0);
-    assertThat("The app_id of entity should equal", entity.getAppId(), is("the_app_id"));
-  }
+	@Autowired
+	private PolicyJsonDao policyJsonDao;
+	
+	@Autowired
+	private TestDataDbUtil testDataDbUtil;
+	
+	@Before
+	public void before() throws Exception {
+		String appId = "the_app_id";
+		String guid = UUID.randomUUID().toString();
+		testDataDbUtil.cleanupData();
+		testDataDbUtil.insertPolicyJson(appId, guid);
+	}
+	@Test
+	public void testGetAllPolicies(){
+		List<PolicyJsonEntity> policyJsonList = policyJsonDao.getAllPolicies();
+		assertThat("It should have 1 policy_json", policyJsonList.size(),is(1));
+		PolicyJsonEntity entity = policyJsonList.get(0);
+		assertThat("The app_id of entity should equal", entity.getAppId(), is("the_app_id"));
+	}
 }

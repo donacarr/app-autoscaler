@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 )
@@ -33,7 +34,7 @@ var _ = Describe("ScalingHandler", func() {
 		trigger                      *models.Trigger
 		history1, history2, history3 *models.AppScalingHistory
 		activeSchedule               *models.ActiveSchedule
-		testMetricName               = "Test-Metric-Name"
+		testMetricName               string = "Test-Metric-Name"
 	)
 
 	BeforeEach(func() {
@@ -261,7 +262,7 @@ var _ = Describe("ScalingHandler", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(errJson).To(Equal(&models.ErrorResponse{
 						Code:    "Bad-Request",
-						Message: "Incorrect order parameter in query string, the value can only be 'ASC' or 'DESC'",
+						Message: fmt.Sprintf("Incorrect order parameter in query string, the value can only be 'ASC' or 'DESC'"),
 					}))
 				})
 			})
@@ -301,7 +302,7 @@ var _ = Describe("ScalingHandler", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(errJson).To(Equal(&models.ErrorResponse{
 						Code:    "Bad-Request",
-						Message: "Incorrect include parameter in query string, the value can only be 'all'",
+						Message: fmt.Sprintf("Incorrect include parameter in query string, the value can only be 'all'"),
 					}))
 				})
 			})

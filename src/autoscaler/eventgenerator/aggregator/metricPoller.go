@@ -6,10 +6,10 @@ import (
 	"autoscaler/routes"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"strconv"
 	"time"
+	"math"
 
 	"code.cloudfoundry.org/lager"
 )
@@ -94,6 +94,7 @@ func (m *MetricPoller) retrieveMetric(app *models.AppMonitor) {
 	}
 	m.logger.Debug("Save-aggregated-appmetric", lager.Data{"appMetric": avgMetric})
 	m.appMetricChan <- avgMetric
+
 }
 
 func (m *MetricPoller) aggregate(appId string, metricType string, metrics []*models.AppInstanceMetric) *models.AppMetric {
@@ -122,7 +123,7 @@ func (m *MetricPoller) aggregate(appId string, metricType string, metrics []*mod
 		}
 	}
 
-	avgValue := int64(math.Ceil(float64(sum) / float64(count)))
+	avgValue := int64(math.Ceil(float64(sum)/float64(count)))
 	return &models.AppMetric{
 		AppId:      appId,
 		MetricType: metricType,
@@ -131,3 +132,4 @@ func (m *MetricPoller) aggregate(appId string, metricType string, metrics []*mod
 		Timestamp:  timestamp,
 	}
 }
+

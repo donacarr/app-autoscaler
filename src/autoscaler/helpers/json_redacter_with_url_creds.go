@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"encoding/json"
-	"errors"
 	"regexp"
 
 	"code.cloudfoundry.org/lager"
@@ -21,9 +20,6 @@ func NewJSONRedacterWithURLCred(keyPatterns []string, valuePatterns []string) (*
 		return nil, err
 	}
 	urlCredMatcher, err := regexp.Compile(postgresDbURLPattern)
-	if err != nil {
-		return nil, err
-	}
 	return &JSONRedacterWithURLCred{
 		jsonRedacter:   jsonRedacter,
 		urlCredMatcher: urlCredMatcher,
@@ -57,30 +53,28 @@ func (r JSONRedacterWithURLCred) redactValue(data *interface{}) interface{} {
 		r.redactObject(&m)
 	} else if s, ok := (*data).(string); ok {
 		if r.urlCredMatcher.MatchString(s) {
-			*data = r.urlCredMatcher.ReplaceAllString(s, `$1://$2:*REDACTED*@$4$5/$6`)
+			(*data) = r.urlCredMatcher.ReplaceAllString(s, `$1://$2:*REDACTED*@$4$5/$6`)
 		}
 	}
-	return *data
+	return (*data)
 }
 
 func (r JSONRedacterWithURLCred) redactArray(data *[]interface{}) {
-	for i := range *data {
+	for i, _ := range *data {
 		r.redactValue(&((*data)[i]))
 	}
 }
 
 func (r JSONRedacterWithURLCred) redactObject(data *map[string]interface{}) {
 	for k, v := range *data {
-		val := v
-		(*data)[k] = r.redactValue(&val)
+		(*data)[k] = r.redactValue(&v)
 	}
 }
 
 func handleError(err error) []byte {
 	var content []byte
-	var errType *json.UnsupportedTypeError
-	if errors.As(err, &errType) {
-		data := map[string]interface{}{"lager serialisation error": errType.Error()}
+	if _, ok := err.(*json.UnsupportedTypeError); ok {
+		data := map[string]interface{}{"lager serialisation error": err.Error()}
 		content, err = json.Marshal(data)
 	}
 	if err != nil {

@@ -9,7 +9,7 @@ import (
 	"autoscaler/routes"
 	"autoscaler/testhelpers"
 
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/lager/lagertest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -36,19 +36,19 @@ var _ = Describe("WsHelper", func() {
 			Message: &loggregator_v2.Envelope_Gauge{
 				Gauge: &loggregator_v2.Gauge{
 					Metrics: map[string]*loggregator_v2.GaugeValue{
-						"cpu": {
+						"cpu": &loggregator_v2.GaugeValue{
 							Unit:  "percentage",
 							Value: 20.5,
 						},
-						"disk": {
+						"disk": &loggregator_v2.GaugeValue{
 							Unit:  "bytes",
 							Value: 3000000000,
 						},
-						"memory": {
+						"memory": &loggregator_v2.GaugeValue{
 							Unit:  "bytes",
 							Value: 1000000000,
 						},
-						"memory_quota": {
+						"memory_quota": &loggregator_v2.GaugeValue{
 							Unit:  "bytes",
 							Value: 2000000000,
 						},
@@ -108,9 +108,10 @@ var _ = Describe("WsHelper", func() {
 			err = wsHelper.Ping()
 			Expect(err).ShouldNot(HaveOccurred())
 			Eventually(pingPongChan, 5*time.Second, 1*time.Second).Should(Receive(Equal(1)))
+
 		})
 		It("close the websocket connection", func() {
-			err = wsHelper.CloseConn()
+			wsHelper.CloseConn()
 			Expect(err).NotTo(HaveOccurred())
 			Eventually(logger.Buffer, 10*time.Second, 1*time.Second).Should(Say("successfully-close-ws-connection"))
 		})
@@ -166,8 +167,7 @@ var _ = Describe("WsHelper", func() {
 		})
 		It("write envelops to server", func() {
 			Consistently(messageChan).ShouldNot(Receive())
-			err = wsHelper.Write(&testEnvelope)
-			Expect(err).NotTo(HaveOccurred())
+			wsHelper.Write(&testEnvelope)
 			Eventually(messageChan).Should(Receive())
 		})
 		Context("when server is down", func() {

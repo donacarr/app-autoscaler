@@ -30,6 +30,7 @@ func NewScalingHandler(logger lager.Logger, scalingEngineDB db.ScalingEngineDB, 
 }
 
 func (h *ScalingHandler) Scale(w http.ResponseWriter, r *http.Request, vars map[string]string) {
+
 	appId := vars["appid"]
 	logger := h.logger.Session("scale", lager.Data{"appId": appId})
 
@@ -59,6 +60,7 @@ func (h *ScalingHandler) Scale(w http.ResponseWriter, r *http.Request, vars map[
 }
 
 func (h *ScalingHandler) GetScalingHistories(w http.ResponseWriter, r *http.Request, vars map[string]string) {
+
 	appId := vars["appid"]
 	logger := h.logger.Session("get-scaling-histories", lager.Data{"appId": appId})
 
@@ -138,7 +140,7 @@ func (h *ScalingHandler) GetScalingHistories(w http.ResponseWriter, r *http.Requ
 			logger.Error("failed-to-get-include-parameter", err, lager.Data{"include": includeParam})
 			handlers.WriteJSONResponse(w, http.StatusBadRequest, models.ErrorResponse{
 				Code:    "Bad-Request",
-				Message: "Incorrect include parameter in query string, the value can only be 'all'",
+				Message: fmt.Sprintf("Incorrect include parameter in query string, the value can only be 'all'"),
 			})
 			return
 		}
@@ -172,13 +174,11 @@ func (h *ScalingHandler) GetScalingHistories(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	_, err = w.Write(body)
-	if err != nil {
-		logger.Error("failed-to-write-body", err)
-	}
+	w.Write(body)
 }
 
 func (h *ScalingHandler) StartActiveSchedule(w http.ResponseWriter, r *http.Request, vars map[string]string) {
+
 	appId := vars["appid"]
 	scheduleId := vars["scheduleid"]
 
@@ -209,6 +209,7 @@ func (h *ScalingHandler) StartActiveSchedule(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *ScalingHandler) RemoveActiveSchedule(w http.ResponseWriter, r *http.Request, vars map[string]string) {
+
 	appId := vars["appid"]
 	scheduleId := vars["scheduleid"]
 
@@ -229,6 +230,7 @@ func (h *ScalingHandler) RemoveActiveSchedule(w http.ResponseWriter, r *http.Req
 }
 
 func (h *ScalingHandler) GetActiveSchedule(w http.ResponseWriter, r *http.Request, vars map[string]string) {
+
 	appId := vars["appid"]
 
 	logger := h.logger.Session("get-active-schedule", lager.Data{"appid": appId})
@@ -262,8 +264,5 @@ func (h *ScalingHandler) GetActiveSchedule(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	_, err = w.Write(body)
-	if err != nil {
-		logger.Error("failed-to-write-body", err)
-	}
+	w.Write(body)
 }

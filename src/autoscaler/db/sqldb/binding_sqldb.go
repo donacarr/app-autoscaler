@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/lager"
+	_ "github.com/lib/pq"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 
 	"autoscaler/db"
 )
@@ -40,7 +40,6 @@ func NewBindingSQLDB(dbConfig db.DatabaseConfig, logger lager.Logger) (*BindingS
 	sqldb.SetConnMaxLifetime(dbConfig.ConnectionMaxLifetime)
 	sqldb.SetMaxIdleConns(dbConfig.MaxIdleConnections)
 	sqldb.SetMaxOpenConns(dbConfig.MaxOpenConnections)
-	sqldb.SetConnMaxIdleTime(dbConfig.ConnectionMaxIdleTime)
 
 	return &BindingSQLDB{
 		dbConfig: dbConfig,
@@ -74,17 +73,15 @@ func (bdb *BindingSQLDB) CreateServiceInstance(serviceInstanceId string, orgId s
 		if err := rows.Scan(&existingOrgId, &existingSpaceId); err != nil {
 			bdb.logger.Error("create-service-instance", err, lager.Data{"query": query, "serviceinstanceid": serviceInstanceId, "orgid": orgId, "spaceid": spaceId})
 		}
-		//rows.Close()
+		rows.Close()
 		if existingOrgId == orgId && existingSpaceId == spaceId {
 			return db.ErrAlreadyExists
 		} else {
 			return db.ErrConflict
 		}
+
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	rows.Close()
 
 	query = bdb.sqldb.Rebind("INSERT INTO service_instance" +
 		"(service_instance_id, org_id, space_id) " +
@@ -106,7 +103,7 @@ func (bdb *BindingSQLDB) DeleteServiceInstance(serviceInstanceId string) error {
 	}
 
 	if rows.Next() {
-		//rows.Close()
+		rows.Close()
 		query = bdb.sqldb.Rebind("DELETE FROM service_instance WHERE service_instance_id =?")
 		_, err = bdb.sqldb.Exec(query, serviceInstanceId)
 
@@ -115,10 +112,7 @@ func (bdb *BindingSQLDB) DeleteServiceInstance(serviceInstanceId string) error {
 		}
 		return err
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	rows.Close()
 	return db.ErrDoesNotExist
 }
 
@@ -131,12 +125,10 @@ func (bdb *BindingSQLDB) CreateServiceBinding(bindingId string, serviceInstanceI
 	}
 
 	if rows.Next() {
+		rows.Close()
 		return db.ErrAlreadyExists
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	rows.Close()
 
 	query = bdb.sqldb.Rebind("INSERT INTO binding" +
 		"(binding_id, service_instance_id, app_id, created_at) " +
@@ -157,6 +149,7 @@ func (bdb *BindingSQLDB) DeleteServiceBinding(bindingId string) error {
 	}
 
 	if rows.Next() {
+		rows.Close()
 		query = bdb.sqldb.Rebind("DELETE FROM binding WHERE binding_id =?")
 		_, err = bdb.sqldb.Exec(query, bindingId)
 
@@ -165,10 +158,7 @@ func (bdb *BindingSQLDB) DeleteServiceBinding(bindingId string) error {
 		}
 		return err
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	rows.Close()
 
 	return db.ErrDoesNotExist
 }
@@ -185,10 +175,7 @@ func (bdb *BindingSQLDB) DeleteServiceBindingByAppId(appId string) error {
 func (bdb *BindingSQLDB) CheckServiceBinding(appId string) bool {
 	var count int
 	query := bdb.sqldb.Rebind("SELECT COUNT(*) FROM binding WHERE app_id=?")
-	err := bdb.sqldb.QueryRow(query, appId).Scan(&count)
-	if err != nil {
-		bdb.logger.Error("check-service-binding-by-appid", err, lager.Data{"query": query, "appId": appId})
-	}
+	bdb.sqldb.QueryRow(query, appId).Scan(&count)
 	return count > 0
 }
 func (bdb *BindingSQLDB) GetDBStatus() sql.DBStats {

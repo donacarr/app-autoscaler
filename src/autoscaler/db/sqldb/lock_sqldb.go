@@ -3,13 +3,12 @@ package sqldb
 import (
 	"database/sql"
 	"database/sql/driver"
-	"errors"
 	"time"
 
 	"code.cloudfoundry.org/lager"
+	_ "github.com/lib/pq"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 
 	"autoscaler/db"
 	"autoscaler/models"
@@ -36,7 +35,7 @@ func NewLockSQLDB(dbConfig db.DatabaseConfig, table string, logger lager.Logger)
 
 	err = sqldb.Ping()
 	if err != nil {
-		_ = sqldb.Close()
+		sqldb.Close()
 		logger.Error("ping-lock-db", err, lager.Data{"dbConfig": dbConfig})
 		return nil, err
 	}
@@ -44,7 +43,6 @@ func NewLockSQLDB(dbConfig db.DatabaseConfig, table string, logger lager.Logger)
 	sqldb.SetConnMaxLifetime(dbConfig.ConnectionMaxLifetime)
 	sqldb.SetMaxIdleConns(dbConfig.MaxIdleConnections)
 	sqldb.SetMaxOpenConns(dbConfig.MaxOpenConnections)
-	sqldb.SetConnMaxIdleTime(dbConfig.ConnectionMaxIdleTime)
 
 	return &LockSQLDB{
 		dbConfig: dbConfig,
@@ -81,7 +79,7 @@ func (ldb *LockSQLDB) fetch(tx *sql.Tx) (*models.Lock, error) {
 
 	query := "SELECT owner,lock_timestamp,ttl FROM " + ldb.table + " LIMIT 1 FOR UPDATE"
 	if ldb.sqldb.DriverName() == "postgres" {
-		query = query + " NOWAIT "
+		query = query +" NOWAIT "
 	}
 	row := tx.QueryRow(query)
 	err := row.Scan(&owner, &timestamp, &ttl)
@@ -172,7 +170,7 @@ func (ldb *LockSQLDB) Lock(lock *models.Lock) (bool, error) {
 				isLockAcquired = false
 				return err
 			}
-			if lastUpdatedTimestamp.Add(time.Second * fetchedLock.Ttl).Before(currentTimestamp) {
+			if lastUpdatedTimestamp.Add(time.Second * time.Duration(fetchedLock.Ttl)).Before(currentTimestamp) {
 				ldb.logger.Info("lock-expired", lager.Data{"Owner": fetchedLock.Owner})
 				err = ldb.remove(fetchedLock.Owner, tx)
 				if err != nil {
@@ -244,9 +242,7 @@ func (ldb *LockSQLDB) transact(db *sqlx.DB, f func(tx *sql.Tx) error) error {
 				ldb.logger.Error("failed-starting-transaction", err)
 				return err
 			}
-			defer func() {
-				_ = tx.Rollback()
-			}()
+			defer tx.Rollback()
 
 			err = f(tx)
 			if err != nil {
@@ -256,12 +252,13 @@ func (ldb *LockSQLDB) transact(db *sqlx.DB, f func(tx *sql.Tx) error) error {
 			err = tx.Commit()
 			if err != nil {
 				ldb.logger.Error("failed-committing-transaction", err)
+
 			}
 			return err
 		}()
 
 		// golang sql package does not always retry query on ErrBadConn
-		if attempts >= 2 || !errors.Is(err, driver.ErrBadConn) {
+		if attempts >= 2 || (err != driver.ErrBadConn) {
 			break
 		} else {
 			ldb.logger.Debug("wait-before-retry-for-transaction", lager.Data{"attempts": attempts})
@@ -271,3 +268,4 @@ func (ldb *LockSQLDB) transact(db *sqlx.DB, f func(tx *sql.Tx) error) error {
 
 	return err
 }
+

@@ -14,7 +14,7 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	"github.com/gorilla/mux"
-	"github.com/patrickmn/go-cache"
+	cache "github.com/patrickmn/go-cache"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/http_server"
 )
@@ -27,6 +27,7 @@ func (vh VarsFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func NewServer(logger lager.Logger, conf *config.Config, policyDB db.PolicyDB, credentialCache cache.Cache, allowedMetricCache cache.Cache, httpStatusCollector healthendpoint.HTTPStatusCollector, rateLimiter ratelimiter.Limiter) (ifrit.Runner, error) {
+
 	metricForwarder, err := forwarder.NewMetricForwarder(logger, conf)
 	if err != nil {
 		logger.Error("failed-to-create-metricforwarder-server", err)
@@ -43,14 +44,10 @@ func NewServer(logger lager.Logger, conf *config.Config, policyDB db.PolicyDB, c
 	r.Use(httpStatusCollectMiddleware.Collect)
 	r.Get(routes.PostCustomMetricsRouteName).Handler(VarsFunc(mh.PublishMetrics))
 
-	var addr string
-	if os.Getenv("APP_AUTOSCALER_TEST_RUN") == "true" {
-		addr = fmt.Sprintf("localhost:%d", conf.Server.Port)
-	} else {
-		addr = fmt.Sprintf("0.0.0.0:%d", conf.Server.Port)
-	}
+	addr := fmt.Sprintf("0.0.0.0:%d", conf.Server.Port)
 
-	runner := http_server.New(addr, r)
+	var runner ifrit.Runner
+	runner = http_server.New(addr, r)
 
 	logger.Info("metrics-forwarder-http-server-created", lager.Data{"config": conf})
 	return runner, nil

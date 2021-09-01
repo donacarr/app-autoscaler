@@ -5,8 +5,8 @@ import (
 	"crypto/tls"
 	"time"
 
-	"code.cloudfoundry.org/go-loggregator/v8"
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	loggregator "code.cloudfoundry.org/go-loggregator"
+	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/lager"
 	"github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
@@ -44,6 +44,7 @@ type Nozzle struct {
 	envelopChan              chan *loggregator_v2.Envelope
 	index                    int
 	shardID                  string
+	appIDs                   map[string]string
 	getAppIDsFunc            GetAppIDsFunc
 	context                  context.Context
 	cancelFunc               context.CancelFunc
@@ -102,6 +103,7 @@ func (n *Nozzle) streamMetrics() {
 			n.envelopeCounterCollector.Add(envelopeCounter, int64(len(envelops)))
 			n.filterEnvelopes(envelops)
 		}
+
 	}
 }
 

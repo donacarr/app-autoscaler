@@ -28,12 +28,13 @@ func (conf *CFConfig) Validate() error {
 	}
 
 	scheme := strings.ToLower(apiURL.Scheme)
-	if scheme != "http" && scheme != "https" {
+	if (scheme != "http") && (scheme != "https") {
 		return fmt.Errorf("Configuration error: cf api scheme is invalid")
 	}
 
-	apiURL.Path = strings.TrimSuffix(apiURL.Path, "/")
-
+	if strings.HasSuffix(apiURL.Path, "/") {
+		apiURL.Path = strings.TrimSuffix(apiURL.Path, "/")
+	}
 	conf.API = apiURL.String()
 
 	if conf.ClientID == "" {

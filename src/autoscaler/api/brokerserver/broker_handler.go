@@ -3,7 +3,6 @@ package brokerserver
 import (
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -30,6 +29,7 @@ type BrokerHandler struct {
 }
 
 func NewBrokerHandler(logger lager.Logger, conf *config.Config, bindingdb db.BindingDB, policydb db.PolicyDB) *BrokerHandler {
+
 	return &BrokerHandler{
 		logger:          logger,
 		conf:            conf,
@@ -38,6 +38,7 @@ func NewBrokerHandler(logger lager.Logger, conf *config.Config, bindingdb db.Bin
 		policyValidator: policyvalidator.NewPolicyValidator(conf.PolicySchemaPath),
 		schedulerUtil:   schedulerutil.NewSchedulerUtil(conf, logger),
 	}
+
 }
 
 func writeErrorResponse(w http.ResponseWriter, statusCode int, message string) {
@@ -46,17 +47,14 @@ func writeErrorResponse(w http.ResponseWriter, statusCode int, message string) {
 		Message: message})
 }
 
-func (h *BrokerHandler) GetBrokerCatalog(w http.ResponseWriter, _ *http.Request, _ map[string]string) {
+func (h *BrokerHandler) GetBrokerCatalog(w http.ResponseWriter, r *http.Request, vars map[string]string) {
 	catalog, err := ioutil.ReadFile(h.conf.CatalogPath)
 	if err != nil {
 		h.logger.Error("failed to read catalog file", err)
 		writeErrorResponse(w, http.StatusInternalServerError, "Failed to load catalog")
 		return
 	}
-	_, err = w.Write(catalog)
-	if err != nil {
-		h.logger.Error("unable to write body", err)
-	}
+	w.Write([]byte(catalog))
 }
 
 func (h *BrokerHandler) CreateServiceInstance(w http.ResponseWriter, r *http.Request, vars map[string]string) {
@@ -84,26 +82,20 @@ func (h *BrokerHandler) CreateServiceInstance(w http.ResponseWriter, r *http.Req
 
 	successResponse := func() {
 		if h.conf.DashboardRedirectURI == "" {
-			_, err = w.Write([]byte("{}"))
-			if err != nil {
-				h.logger.Error("unable to write body", err)
-			}
+			w.Write([]byte("{}"))
 		} else {
-			_, err = w.Write([]byte(fmt.Sprintf("{\"dashboard_url\":\"%s\"}", GetDashboardURL(h.conf, instanceId))))
-			if err != nil {
-				h.logger.Error("unable to write body", err)
-			}
+			w.Write([]byte(fmt.Sprintf("{\"dashboard_url\":\"%s\"}", GetDashboardURL(h.conf, instanceId))))
 		}
 	}
-	err = h.bindingdb.CreateServiceInstance(instanceId, body.OrgGUID, body.SpaceGUID)
-	switch {
-	case err == nil:
+
+	switch err := h.bindingdb.CreateServiceInstance(instanceId, body.OrgGUID, body.SpaceGUID); err {
+	case nil:
 		w.WriteHeader(http.StatusCreated)
 		successResponse()
-	case errors.Is(err, db.ErrAlreadyExists):
+	case db.ErrAlreadyExists:
 		h.logger.Error("failed to create service instance: service instance already exists", err, lager.Data{"instanceId": instanceId, "orgGuid": body.OrgGUID, "spaceGuid": body.SpaceGUID})
 		successResponse()
-	case errors.Is(err, db.ErrConflict):
+	case db.ErrConflict:
 		h.logger.Error("failed to create service instance: conflicting service instance exists", err, lager.Data{"instanceId": instanceId, "orgGuid": body.OrgGUID, "spaceGuid": body.SpaceGUID})
 		writeErrorResponse(w, http.StatusConflict, fmt.Sprintf("Service instance with instance_id \"%s\" already exists with different parameters", instanceId))
 	default:
@@ -112,7 +104,7 @@ func (h *BrokerHandler) CreateServiceInstance(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (h *BrokerHandler) DeleteServiceInstance(w http.ResponseWriter, _ *http.Request, vars map[string]string) {
+func (h *BrokerHandler) DeleteServiceInstance(w http.ResponseWriter, r *http.Request, vars map[string]string) {
 	instanceId := vars["instanceId"]
 	if instanceId == "" {
 		h.logger.Error("failed to delete service instance when trying to get mandatory data", nil,
@@ -123,7 +115,7 @@ func (h *BrokerHandler) DeleteServiceInstance(w http.ResponseWriter, _ *http.Req
 
 	err := h.bindingdb.DeleteServiceInstance(instanceId)
 	if err != nil {
-		if errors.Is(err, db.ErrDoesNotExist) {
+		if err == db.ErrDoesNotExist {
 			h.logger.Error("failed to delete service instance: service instance does not exist", err,
 				lager.Data{"instanaceId": instanceId})
 			writeErrorResponse(w, http.StatusGone, "Service Instance Doesn't Exist")
@@ -135,10 +127,7 @@ func (h *BrokerHandler) DeleteServiceInstance(w http.ResponseWriter, _ *http.Req
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte("{}"))
-	if err != nil {
-		h.logger.Error("unable to write body", err)
-	}
+	w.Write([]byte("{}"))
 }
 
 func (h *BrokerHandler) BindServiceInstance(w http.ResponseWriter, r *http.Request, vars map[string]string) {
@@ -181,7 +170,7 @@ func (h *BrokerHandler) BindServiceInstance(w http.ResponseWriter, r *http.Reque
 	}
 	err = h.bindingdb.CreateServiceBinding(bindingId, instanceId, body.AppID)
 	if err != nil {
-		if errors.Is(err, db.ErrAlreadyExists) {
+		if err == db.ErrAlreadyExists {
 			h.logger.Error("failed to create binding: binding already exists", err, lager.Data{"appId": body.AppID})
 			writeErrorResponse(w, http.StatusConflict, "An autoscaler service instance is already bound to the application. Multiple bindings are not supported.")
 			return
@@ -239,7 +228,7 @@ func (h *BrokerHandler) BindServiceInstance(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-func (h *BrokerHandler) UnbindServiceInstance(w http.ResponseWriter, _ *http.Request, vars map[string]string) {
+func (h *BrokerHandler) UnbindServiceInstance(w http.ResponseWriter, r *http.Request, vars map[string]string) {
 	instanceId := vars["instanceId"]
 	bindingId := vars["bindingId"]
 
@@ -249,7 +238,7 @@ func (h *BrokerHandler) UnbindServiceInstance(w http.ResponseWriter, _ *http.Req
 		return
 	}
 	appId, err := h.bindingdb.GetAppIdByBindingId(bindingId)
-	if errors.Is(err, sql.ErrNoRows) {
+	if err == sql.ErrNoRows {
 		h.logger.Info("binding does not exist", nil, lager.Data{"instanceId": instanceId, "bindingId": bindingId})
 		writeErrorResponse(w, http.StatusGone, "Binding does not exist")
 		return
@@ -274,7 +263,7 @@ func (h *BrokerHandler) UnbindServiceInstance(w http.ResponseWriter, _ *http.Req
 	err = h.bindingdb.DeleteServiceBinding(bindingId)
 	if err != nil {
 		h.logger.Error("failed to delete binding", err, lager.Data{"bindingId": bindingId, "appId": appId})
-		if errors.Is(err, db.ErrDoesNotExist) {
+		if err == db.ErrDoesNotExist {
 			writeErrorResponse(w, http.StatusGone, "Service Binding Doesn't Exist")
 			return
 		}
@@ -287,8 +276,5 @@ func (h *BrokerHandler) UnbindServiceInstance(w http.ResponseWriter, _ *http.Req
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte("{}"))
-	if err != nil {
-		h.logger.Error("unable to write body", err)
-	}
+	w.Write([]byte("{}"))
 }

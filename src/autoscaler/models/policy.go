@@ -2,7 +2,6 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 )
 
@@ -16,11 +15,11 @@ type PolicyJson struct {
 	PolicyStr string
 }
 
-func (p *PolicyJson) Equals(p2 *PolicyJson) bool {
-	if p == p2 {
+func (p1 *PolicyJson) Equals(p2 *PolicyJson) bool {
+	if p1 == p2 {
 		return true
-	} else if p != nil && p2 != nil {
-		if p.AppId == p2.AppId && p.PolicyStr == p2.PolicyStr {
+	} else if p1 != nil && p2 != nil {
+		if p1.AppId == p2.AppId && p1.PolicyStr == p2.PolicyStr {
 			return true
 		} else {
 			return false
@@ -29,13 +28,10 @@ func (p *PolicyJson) Equals(p2 *PolicyJson) bool {
 		return false
 	}
 }
-func (p *PolicyJson) GetAppPolicy() (*AppPolicy, error) {
+func (p *PolicyJson) GetAppPolicy() *AppPolicy {
 	scalingPolicy := ScalingPolicy{}
-	err := json.Unmarshal([]byte(p.PolicyStr), &scalingPolicy)
-	if err != nil {
-		return nil, fmt.Errorf("policy unmarshalling failed %w", err)
-	}
-	return &AppPolicy{AppId: p.AppId, ScalingPolicy: &scalingPolicy}, nil
+	json.Unmarshal([]byte(p.PolicyStr), &scalingPolicy)
+	return &AppPolicy{AppId: p.AppId, ScalingPolicy: &scalingPolicy}
 }
 
 type ScalingPolicy struct {

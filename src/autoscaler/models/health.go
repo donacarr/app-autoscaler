@@ -2,7 +2,6 @@ package models
 
 import (
 	"fmt"
-
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -15,6 +14,7 @@ type HealthConfig struct {
 }
 
 func (c *HealthConfig) Validate() error {
+
 	if c.HealthCheckUsername != "" && c.HealthCheckUsernameHash != "" {
 		return fmt.Errorf("Configuration error: both healthcheck username and healthcheck username_hash are set, please provide only one of them")
 	}

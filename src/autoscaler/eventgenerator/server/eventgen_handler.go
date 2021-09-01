@@ -117,8 +117,5 @@ func (h *EventGenHandler) GetAggregatedMetricHistories(w http.ResponseWriter, r 
 			Message: "Error marshaling aggregated metric histories"})
 		return
 	}
-	_, err = w.Write(body)
-	if err != nil {
-		h.logger.Error("unable to write body", err)
-	}
+	w.Write(body)
 }

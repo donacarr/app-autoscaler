@@ -5,9 +5,9 @@ import (
 	"autoscaler/models"
 
 	"code.cloudfoundry.org/lager"
+	_ "github.com/lib/pq"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 
 	"database/sql"
 	"time"
@@ -41,8 +41,6 @@ func NewScalingEngineSQLDB(dbConfig db.DatabaseConfig, logger lager.Logger) (*Sc
 	sqldb.SetConnMaxLifetime(dbConfig.ConnectionMaxLifetime)
 	sqldb.SetMaxIdleConns(dbConfig.MaxIdleConnections)
 	sqldb.SetMaxOpenConns(dbConfig.MaxOpenConnections)
-	sqldb.SetConnMaxIdleTime(dbConfig.ConnectionMaxIdleTime)
-
 	return &ScalingEngineSQLDB{
 		dbConfig: dbConfig,
 		logger:   logger,
@@ -61,8 +59,8 @@ func (sdb *ScalingEngineSQLDB) Close() error {
 
 func (sdb *ScalingEngineSQLDB) SaveScalingHistory(history *models.AppScalingHistory) error {
 	query := sdb.sqldb.Rebind("INSERT INTO scalinghistory" +
-		"(appid, timestamp, scalingtype, status, oldinstances, newinstances, reason, message, error) " +
-		" VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)")
+	        "(appid, timestamp, scalingtype, status, oldinstances, newinstances, reason, message, error) " +
+	        " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	_, err := sdb.sqldb.Exec(query, history.AppId, history.Timestamp, history.ScalingType, history.Status,
 		history.OldInstances, history.NewInstances, history.Reason, history.Message, history.Error)
 
@@ -81,10 +79,10 @@ func (sdb *ScalingEngineSQLDB) RetrieveScalingHistories(appId string, start int6
 	}
 
 	query := sdb.sqldb.Rebind("SELECT timestamp, scalingtype, status, oldinstances, newinstances, reason, message, error FROM scalinghistory WHERE" +
-		" appid = ? " +
-		" AND timestamp >= ?" +
-		" AND timestamp <= ?" +
-		" ORDER BY timestamp " + orderStr)
+	        " appid = ? " +
+	        " AND timestamp >= ?" +
+	        " AND timestamp <= ?" +
+	        " ORDER BY timestamp " + orderStr)
 
 	if end < 0 {
 		end = time.Now().UnixNano()
@@ -98,10 +96,7 @@ func (sdb *ScalingEngineSQLDB) RetrieveScalingHistories(appId string, start int6
 		return nil, err
 	}
 
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 
 	var timestamp int64
 	var scalingType, status, oldInstances, newInstances int
@@ -148,10 +143,7 @@ func (sdb *ScalingEngineSQLDB) CanScaleApp(appId string) (bool, int64, error) {
 		sdb.logger.Error("can-scale-app-query-record", err, lager.Data{"query": query, "appid": appId})
 		return false, 0, err
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 
 	var expireAt int64 = 0
 	if rows.Next() {
@@ -214,10 +206,7 @@ func (sdb *ScalingEngineSQLDB) GetActiveSchedules() (map[string]string, error) {
 		sdb.logger.Error("failed-get-active-schedules", err, lager.Data{"query": query})
 		return nil, err
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 
 	schedules := make(map[string]string)
 	var id, appId string
@@ -248,7 +237,7 @@ func (sdb *ScalingEngineSQLDB) SetActiveSchedule(appId string, schedule *models.
 	}
 
 	query := sdb.sqldb.Rebind("INSERT INTO activeschedule(appid, scheduleid, instancemincount, instancemaxcount, initialmininstancecount) " +
-		" VALUES (?, ?, ?, ?, ?)")
+	        " VALUES (?, ?, ?, ?, ?)")
 	_, err = sdb.sqldb.Exec(query, appId, schedule.ScheduleId, schedule.InstanceMin, schedule.InstanceMax, schedule.InstanceMinInitial)
 
 	if err != nil {

@@ -1,7 +1,6 @@
 package publicapiserver
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 
@@ -16,7 +15,9 @@ import (
 
 type Middleware struct {
 	logger           lager.Logger
+	cf               cf.CFConfig
 	cfClient         cf.CFClient
+	cfTokenEndpoint  string
 	checkBindingFunc api.CheckBindingFunc
 }
 
@@ -55,6 +56,26 @@ func (mw *Middleware) Oauth(next http.Handler) http.Handler {
 			})
 			return
 		}
+		isUserSpaceDeveloper, err := mw.cfClient.IsUserSpaceDeveloper(userToken, appId)
+		if err != nil {
+			if err == cf.ErrUnauthrorized {
+				handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
+					Code:    "Unauthorized",
+					Message: "You are not authorized to perform the requested action"})
+				return
+			} else {
+				mw.logger.Error("failed to check space developer permissions", err, nil)
+				handlers.WriteJSONResponse(w, http.StatusInternalServerError, models.ErrorResponse{
+					Code:    "Interal-Server-Error",
+					Message: "Failed to check space developer permission"})
+				return
+			}
+
+		}
+		if isUserSpaceDeveloper {
+			next.ServeHTTP(w, r)
+			return
+		}
 		isUserAdmin, err := mw.cfClient.IsUserAdmin(userToken)
 		if err != nil {
 			mw.logger.Error("failed to check if user is admin", err, nil)
@@ -67,29 +88,11 @@ func (mw *Middleware) Oauth(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		isUserSpaceDeveloper, err := mw.cfClient.IsUserSpaceDeveloper(userToken, appId)
-		if err != nil {
-			if errors.Is(err, cf.ErrUnauthrorized) {
-				handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
-					Code:    "Unauthorized",
-					Message: "You are not authorized to perform the requested action"})
-				return
-			} else {
-				mw.logger.Error("failed to check space developer permissions", err, nil)
-				handlers.WriteJSONResponse(w, http.StatusInternalServerError, models.ErrorResponse{
-					Code:    "Interal-Server-Error",
-					Message: "Failed to check space developer permission"})
-				return
-			}
-		}
-		if isUserSpaceDeveloper {
-			next.ServeHTTP(w, r)
-			return
-		}
 
 		handlers.WriteJSONResponse(w, http.StatusUnauthorized, models.ErrorResponse{
 			Code:    "Unauthorized",
 			Message: "You are not authorized to perform the requested action"})
+		return
 	})
 }
 
@@ -113,6 +116,8 @@ func (mw *Middleware) CheckServiceBinding(next http.Handler) http.Handler {
 		}
 		mw.logger.Error("binding is not present", nil, lager.Data{"appId": appId})
 		http.Error(w, "{ \"error\": \"The application is not bound to Auto-Scaling service\" }", http.StatusForbidden)
+		return
+
 	})
 }
 
@@ -122,6 +127,8 @@ func (mw *Middleware) RejectCredentialOperationInServiceOffering(next http.Handl
 			Code:    "Forbidden",
 			Message: "This command is only valid for build-in auto-scaling capacity. Please operate service credential with \"cf bind/unbind-service\" command.",
 		})
+		return
+
 	})
 }
 
@@ -138,4 +145,15 @@ func (mw *Middleware) isValidUserToken(userToken string) bool {
 	}
 
 	return true
+}
+
+func (mw *Middleware) SetSecureHeader(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Xss-Protection", "1; mode=block")
+		w.Header().Set("Strict-Transport-Security", "max-age=15552000; includeSubDomains")
+		w.Header().Set("Content-Security-Policy","default-src 'self'")
+		next.ServeHTTP(w, r) 
+	})
 }

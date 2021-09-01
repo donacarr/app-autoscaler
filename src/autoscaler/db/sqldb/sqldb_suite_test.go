@@ -12,11 +12,11 @@ import (
 	"autoscaler/db"
 	"autoscaler/models"
 
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	_ "github.com/go-sql-driver/mysql"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/jmoiron/sqlx"
 )
 
 var dbHelper *sqlx.DB
@@ -35,10 +35,10 @@ var _ = BeforeSuite(func() {
 	}
 	database, err := db.GetConnection(dbUrl)
 	if err != nil {
-		Fail("failed to parse database connection: " + err.Error())
+		Fail("failed to parse database connection: "+ err.Error())
 	}
 
-	dbHelper, e = sqlx.Open(database.DriverName, database.DSN)
+	dbHelper, e =  sqlx.Open(database.DriverName, database.DSN)
 	if e != nil {
 		Fail("can not connect database: " + e.Error())
 	}
@@ -55,7 +55,7 @@ var _ = AfterSuite(func() {
 		Fail("can not drop test lock table: " + e.Error())
 	}
 	if dbHelper != nil {
-		_ = dbHelper.Close()
+		dbHelper.Close()
 	}
 
 })
@@ -73,10 +73,7 @@ func hasInstanceMetric(appId string, index int, name string, timestamp int64) bo
 	if e != nil {
 		Fail("can not query table appinstancemetrics: " + e.Error())
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 	return rows.Next()
 }
 
@@ -109,10 +106,7 @@ func hasServiceInstance(serviceInstanceId string) bool {
 	if e != nil {
 		Fail("can not query table service_instance: " + e.Error())
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 	return rows.Next()
 }
 
@@ -122,10 +116,7 @@ func hasServiceBinding(bindingId string, serviceInstanceId string) bool {
 	if e != nil {
 		Fail("can not query table binding: " + e.Error())
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 	return rows.Next()
 }
 
@@ -156,10 +147,7 @@ func getAppPolicy(appId string) string {
 	if err != nil {
 		Fail("failed to get policy" + err.Error())
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 	var policyJsonStr string
 	if rows.Next() {
 		err = rows.Scan(&policyJsonStr)
@@ -183,10 +171,7 @@ func hasAppMetric(appId, metricType string, timestamp int64, value string) bool 
 	if e != nil {
 		Fail("can not query table app_metric: " + e.Error())
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 	return rows.Next()
 }
 
@@ -212,10 +197,7 @@ func hasScalingHistory(appId string, timestamp int64) bool {
 	if e != nil {
 		Fail("can not query table scalinghistory: " + e.Error())
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 	return rows.Next()
 }
 
@@ -241,11 +223,12 @@ func hasScalingCooldownRecord(appId string, expireAt int64) bool {
 	if e != nil {
 		Fail("can not query table scalingcooldown: " + e.Error())
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 	return rows.Next()
+}
+func GetInt64Pointer(value int64) *int64 {
+	tmp := value
+	return &tmp
 }
 
 func cleanActiveScheduleTable() error {
@@ -281,22 +264,22 @@ func insertSchedulerActiveSchedule(id int, appId string, startJobIdentifier int,
 }
 
 func insertCredential(appid string, username string, password string) error {
+
 	var err error
-	query := dbHelper.Rebind("INSERT INTO credentials(id, username, password, updated_at) values(?, ?, ?, ?)")
+	var query string
+
+	query = dbHelper.Rebind("INSERT INTO credentials(id, username, password, updated_at) values(?, ?, ?, ?)")
 	_, err = dbHelper.Exec(query, appid, username, password, "2011-05-18 15:36:38")
 	return err
-}
 
+}
 func getCredential(appId string) (string, string, error) {
 	query := dbHelper.Rebind("SELECT username,password FROM credentials WHERE id=? ")
 	rows, err := dbHelper.Query(query, appId)
 	if err != nil {
 		Fail("failed to get credential" + err.Error())
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 	var username, password string
 	if rows.Next() {
 		err = rows.Scan(&username, &password)
@@ -312,10 +295,7 @@ func hasCredential(appId string) bool {
 	if e != nil {
 		Fail("can not query table credentials: " + e.Error())
 	}
-	defer func() {
-		_ = rows.Close()
-		_ = rows.Err()
-	}()
+	defer rows.Close()
 	return rows.Next()
 }
 func cleanCredentialTable() error {
@@ -378,8 +358,8 @@ func validateLockInDB(ownerid string, expectedLock *models.Lock) error {
 	if expectedLock.Owner != owner {
 		errMsg += fmt.Sprintf("mismatch owner (%s, %s),", expectedLock.Owner, owner)
 	}
-	if expectedLock.Ttl != time.Second*ttl {
-		errMsg += fmt.Sprintf("mismatch ttl (%d, %d),", expectedLock.Ttl, time.Second*ttl)
+	if expectedLock.Ttl != time.Second*time.Duration(ttl) {
+		errMsg += fmt.Sprintf("mismatch ttl (%d, %d),", expectedLock.Ttl, time.Second*time.Duration(ttl))
 	}
 	if errMsg != "" {
 		return errors.New(errMsg)
@@ -404,15 +384,17 @@ func validateLockNotInDB(owner string) error {
 	return fmt.Errorf("lock exists with owner (%s)", owner)
 }
 
-func formatPolicyString(policyStr string) (string, error) {
+func formatPolicyString(policyStr string) string {
 	scalingPolicy := &models.ScalingPolicy{}
-	err := json.Unmarshal([]byte(policyStr), &scalingPolicy)
+	err := json.Unmarshal([]byte(policyStr),&scalingPolicy)
 	if err != nil {
-		return "", fmt.Errorf("failed to unmarshal policyJson string %s", policyStr)
+		fmt.Errorf("failed to unmarshal policyJson string %s", policyStr)
+		return ""
 	}
 	policyJsonStr, err := json.Marshal(scalingPolicy)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal ScalingPolicy %v", scalingPolicy)
+		fmt.Errorf("failed to marshal ScalingPolicy %v", scalingPolicy)
+		return ""
 	}
-	return string(policyJsonStr), nil
+	return string(policyJsonStr)
 }

@@ -5,12 +5,10 @@ import (
 	. "autoscaler/db/sqldb"
 	"database/sql"
 	"os"
-	"strings"
 	"time"
-
-	"code.cloudfoundry.org/lager"
-	"github.com/go-sql-driver/mysql"
 	"github.com/lib/pq"
+	"github.com/go-sql-driver/mysql"
+	"code.cloudfoundry.org/lager"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -21,12 +19,12 @@ var _ = Describe("BindingSqldb", func() {
 		dbConfig       db.DatabaseConfig
 		logger         lager.Logger
 		err            error
-		testInstanceId = "test-instance-id"
-		testBindingId  = "test-binding-id"
-		testAppId      = "test-app-id"
-		testOrgGuid    = "test-org-guid"
-		testOrgGuid2   = "test-org-guid-2"
-		testSpaceGuid  = "test-space-guid"
+		testInstanceId string = "test-instance-id"
+		testBindingId  string = "test-binding-id"
+		testAppId      string = "test-app-id"
+		testOrgGuid    string = "test-org-guid"
+		testOrgGuid2   string = "test-org-guid-2"
+		testSpaceGuid  string = "test-space-guid"
 	)
 
 	BeforeEach(func() {
@@ -36,7 +34,6 @@ var _ = Describe("BindingSqldb", func() {
 			MaxOpenConnections:    10,
 			MaxIdleConnections:    5,
 			ConnectionMaxLifetime: 10 * time.Second,
-			ConnectionMaxIdleTime: 10 * time.Second,
 		}
 	})
 
@@ -54,9 +51,6 @@ var _ = Describe("BindingSqldb", func() {
 
 		Context("when db url is not correct", func() {
 			BeforeEach(func() {
-				if !strings.Contains(os.Getenv("DBURL"), "postgres") {
-					Skip("Not configured for postgres")
-				}
 				dbConfig.URL = "postgres://not-exist-user:not-exist-password@localhost/autoscaler?sslmode=disable"
 			})
 			It("should throw an error", func() {
@@ -66,16 +60,13 @@ var _ = Describe("BindingSqldb", func() {
 
 		Context("when mysql db url is not correct", func() {
 			BeforeEach(func() {
-				if strings.Contains(os.Getenv("DBURL"), "postgres") {
-					Skip("Not configured for mysql")
-				}
 				dbConfig.URL = "not-exist-user:not-exist-password@tcp(localhost)/autoscaler?tls=false"
 			})
 			It("should throw an error", func() {
 				Expect(err).To(BeAssignableToTypeOf(&mysql.MySQLError{}))
 			})
 		})
-
+		
 		Context("when db url is correct", func() {
 			It("should not error", func() {
 				Expect(err).NotTo(HaveOccurred())

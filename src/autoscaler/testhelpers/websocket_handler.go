@@ -32,6 +32,7 @@ func (h *WebsocketHandler) CloseWSConnection() {
 	defer h.conLock.Unlock()
 	if h.wsConn != nil {
 		h.wsConn.Close()
+
 	}
 }
 func (h *WebsocketHandler) ServeWebsocket(rw http.ResponseWriter, r *http.Request) {
@@ -54,11 +55,7 @@ func (h *WebsocketHandler) ServeWebsocket(rw http.ResponseWriter, r *http.Reques
 	defer ws.Close()
 
 	closeCode, closeMessage := h.runWebsocketUntilClosed(ws)
-	err = ws.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(closeCode, closeMessage), time.Time{})
-	if err != nil {
-		log.Printf("websocket handler: failed to close: %s", err)
-		return
-	}
+	ws.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(closeCode, closeMessage), time.Time{})
 }
 
 func (h *WebsocketHandler) runWebsocketUntilClosed(ws *websocket.Conn) (closeCode int, closeMessage string) {

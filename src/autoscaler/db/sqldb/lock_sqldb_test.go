@@ -5,12 +5,11 @@ import (
 	. "autoscaler/db/sqldb"
 	"autoscaler/models"
 	"os"
-	"strings"
-	"time"
 
 	"code.cloudfoundry.org/lager"
-	"github.com/go-sql-driver/mysql"
 	"github.com/lib/pq"
+	"github.com/go-sql-driver/mysql"
+	"time"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -33,7 +32,6 @@ var _ = Describe("LockSqldb", func() {
 			MaxOpenConnections:    10,
 			MaxIdleConnections:    5,
 			ConnectionMaxLifetime: 10 * time.Second,
-			ConnectionMaxIdleTime: 10 * time.Second,
 		}
 		testTTL = time.Duration(15) * time.Second
 	})
@@ -52,9 +50,6 @@ var _ = Describe("LockSqldb", func() {
 
 		Context("when db url is not correct", func() {
 			BeforeEach(func() {
-				if !strings.Contains(os.Getenv("DBURL"), "postgres") {
-					Skip("Not configured for postgres")
-				}
 				dbConfig.URL = "postgres://not-exist-user:not-exist-password@localhost/autoscaler?sslmode=disable"
 			})
 			It("should throw an error", func() {
@@ -64,16 +59,13 @@ var _ = Describe("LockSqldb", func() {
 
 		Context("when mysql db url is not correct", func() {
 			BeforeEach(func() {
-				if strings.Contains(os.Getenv("DBURL"), "postgres") {
-					Skip("Not configured for mysql")
-				}
 				dbConfig.URL = "not-exist-user:not-exist-password@tcp(localhost)/autoscaler?tls=false"
 			})
 			It("should throw an error", func() {
 				Expect(err).To(BeAssignableToTypeOf(&mysql.MySQLError{}))
 			})
 		})
-
+		
 		Context("when lock db url is correct", func() {
 			It("should not error", func() {
 				Expect(err).NotTo(HaveOccurred())
@@ -91,8 +83,7 @@ var _ = Describe("LockSqldb", func() {
 		AfterEach(func() {
 			err = ldb.Close()
 			Expect(err).NotTo(HaveOccurred())
-			err = cleanLockTable()
-			Expect(err).NotTo(HaveOccurred())
+			cleanLockTable()
 		})
 
 		Context("when the lock does not exist", func() {
@@ -196,8 +187,7 @@ var _ = Describe("LockSqldb", func() {
 		AfterEach(func() {
 			err = ldb.Close()
 			Expect(err).NotTo(HaveOccurred())
-			err = cleanLockTable()
-			Expect(err).NotTo(HaveOccurred())
+			cleanLockTable()
 		})
 
 		Context("when the lock exist", func() {

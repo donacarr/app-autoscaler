@@ -9,16 +9,16 @@ import (
 	"io/ioutil"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
-	DefaultMetronAddress        = "127.0.0.1:3458"
-	DefaultCacheTTL             = 15 * time.Minute
-	DefaultCacheCleanupInterval = 6 * time.Hour
-	DefaultPolicyPollerInterval = 40 * time.Second
-	DefaultMaxAmount            = 10
-	DefaultValidDuration        = 1 * time.Second
+	DefaultMetronAddress                      = "127.0.0.1:3458"
+	DefaultCacheTTL             time.Duration = 15 * time.Minute
+	DefaultCacheCleanupInterval time.Duration = 6 * time.Hour
+	DefaultPolicyPollerInterval time.Duration = 40 * time.Second
+	DefaultMaxAmount                          = 10
+	DefaultValidDuration        time.Duration = 1 * time.Second
 )
 
 type Config struct {
@@ -63,6 +63,7 @@ type DbConfig struct {
 }
 
 func LoadConfig(reader io.Reader) (*Config, error) {
+
 	conf := &Config{
 		Server:  defaultServerConfig,
 		Logging: defaultLoggingConfig,
@@ -84,7 +85,7 @@ func LoadConfig(reader io.Reader) (*Config, error) {
 		return nil, err
 	}
 
-	err = yaml.UnmarshalStrict(bytes, conf)
+	err = yaml.Unmarshal(bytes, conf)
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +94,7 @@ func LoadConfig(reader io.Reader) (*Config, error) {
 }
 
 func (c *Config) Validate() error {
+
 	if c.Db.PolicyDb.URL == "" {
 		return fmt.Errorf("Configuration error: Policy DB url is empty")
 	}

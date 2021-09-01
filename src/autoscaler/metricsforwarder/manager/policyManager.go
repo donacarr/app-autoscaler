@@ -8,7 +8,7 @@ import (
 
 	"code.cloudfoundry.org/clock"
 	"code.cloudfoundry.org/lager"
-	"github.com/patrickmn/go-cache"
+	cache "github.com/patrickmn/go-cache"
 )
 
 type Consumer func(map[string]*models.AppPolicy, chan *models.AppMonitor)
@@ -90,11 +90,7 @@ func (pm *PolicyManager) retrievePolicies() ([]*models.PolicyJson, error) {
 func (pm *PolicyManager) computePolicies(policyJsons []*models.PolicyJson) map[string]*models.AppPolicy {
 	policyMap := make(map[string]*models.AppPolicy)
 	for _, policyJSON := range policyJsons {
-		appPolicy, err := policyJSON.GetAppPolicy()
-		if err != nil {
-			pm.logger.Error("get-app-policy", err)
-			continue
-		}
+		appPolicy := policyJSON.GetAppPolicy()
 		policyMap[policyJSON.AppId] = appPolicy
 	}
 	return policyMap

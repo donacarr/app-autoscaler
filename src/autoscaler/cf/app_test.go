@@ -3,11 +3,10 @@ package cf_test
 import (
 	. "autoscaler/cf"
 	"autoscaler/models"
-	"errors"
+	"io"
 
 	"code.cloudfoundry.org/clock"
 	"code.cloudfoundry.org/lager"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
@@ -35,7 +34,7 @@ var _ = Describe("App", func() {
 		fakeLoginServer = ghttp.NewServer()
 		fakeCC.RouteToHandler("GET", PathCFInfo, ghttp.RespondWithJSONEncoded(http.StatusOK, Endpoints{
 			AuthEndpoint:    fakeLoginServer.URL(),
-			TokenEndpoint:   fakeLoginServer.URL(),
+			TokenEndpoint:   "test-token-endpoint",
 			DopplerEndpoint: "test-doppler-endpoint",
 		}))
 		fakeLoginServer.RouteToHandler("POST", PathCFAuth, ghttp.RespondWithJSONEncoded(http.StatusOK, Tokens{
@@ -45,8 +44,7 @@ var _ = Describe("App", func() {
 		conf = &CFConfig{}
 		conf.API = fakeCC.URL()
 		cfc = NewCFClient(conf, lager.NewLogger("cf"), clock.NewClock())
-		err = cfc.Login()
-		Expect(err).NotTo(HaveOccurred())
+		cfc.Login()
 	})
 
 	AfterEach(func() {
@@ -148,7 +146,9 @@ var _ = Describe("App", func() {
 
 			It("should error", func() {
 				Expect(appEntity).To(BeNil())
-				IsUrlNetOpError(err)
+				Expect(err).To(BeAssignableToTypeOf(&url.Error{}))
+				urlErr := err.(*url.Error)
+				Expect(urlErr.Err).To(BeAssignableToTypeOf(&net.OpError{}))
 			})
 
 		})
@@ -215,7 +215,6 @@ var _ = Describe("App", func() {
 				fakeCC = nil
 
 				Eventually(func() error {
-					// #nosec G107
 					resp, err := http.Get(ccURL)
 					if err != nil {
 						return err
@@ -226,7 +225,9 @@ var _ = Describe("App", func() {
 			})
 
 			It("should error", func() {
-				IsUrlNetOpError(err)
+				Expect(err).To(BeAssignableToTypeOf(&url.Error{}))
+				urlErr := err.(*url.Error)
+				Expect(urlErr.Err).To(Or(Equal(io.EOF), BeAssignableToTypeOf(&net.OpError{})))
 			})
 
 		})
@@ -234,11 +235,3 @@ var _ = Describe("App", func() {
 	})
 
 })
-
-func IsUrlNetOpError(err error) {
-	var urlErr *url.Error
-	Expect(errors.As(err, &urlErr)).To(BeTrue())
-
-	var netOpErr *net.OpError
-	Expect(errors.As(err, &netOpErr)).To(BeTrue())
-}

@@ -85,6 +85,7 @@ func (am *AppManager) startPolicyRetrieve() {
 		case <-am.doneChan:
 			return
 		case <-tick.C():
+
 		}
 	}
 }
@@ -103,11 +104,7 @@ func (am *AppManager) computePolicies(policyJsons []*models.PolicyJson) map[stri
 	policyMap := make(map[string]*models.AppPolicy)
 	for _, policyJSON := range policyJsons {
 		if (am.nodeNum == 1) || (helpers.FNVHash(policyJSON.AppId)%uint32(am.nodeNum) == uint32(am.nodeIndex)) {
-			appPolicy, err := policyJSON.GetAppPolicy()
-			if err != nil {
-				am.logger.Error("get-app-policy", err)
-				continue
-			}
+			appPolicy := policyJSON.GetAppPolicy()
 			policyMap[policyJSON.AppId] = appPolicy
 		}
 	}

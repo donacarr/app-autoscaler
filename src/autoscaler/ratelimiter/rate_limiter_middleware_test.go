@@ -21,7 +21,7 @@ var _ = Describe("RateLimiterMiddleware", func() {
 		rateLimiter *fakes.FakeLimiter
 		rlmw        *ratelimiter.RateLimiterMiddleware
 	)
-
+	
 	Describe("CheckRateLimit", func() {
 		BeforeEach(func() {
 			rateLimiter = &fakes.FakeLimiter{}
@@ -74,7 +74,6 @@ var _ = Describe("RateLimiterMiddleware", func() {
 
 func GetTestHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte("Success"))
-		Expect(err).NotTo(HaveOccurred())
+		w.Write([]byte("Success"))
 	}
 }

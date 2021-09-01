@@ -28,12 +28,7 @@ func (c *cfClient) GetApp(appID string) (*models.AppEntity, error) {
 		c.logger.Error("get-app-instances-new-request", err)
 		return nil, err
 	}
-	tokens, err := c.GetTokens()
-	if err != nil {
-		c.logger.Error("get-app-instances-get-tokens", err)
-		return nil, err
-	}
-	req.Header.Set("Authorization", TokenTypeBearer+" "+tokens.AccessToken)
+	req.Header.Set("Authorization", TokenTypeBearer+" "+c.GetTokens().AccessToken)
 
 	var resp *http.Response
 	resp, err = c.httpClient.Do(req)
@@ -52,7 +47,7 @@ func (c *cfClient) GetApp(appID string) (*models.AppEntity, error) {
 				return nil, err
 			}
 			var bodydata map[string]interface{}
-			err = json.Unmarshal(respBody, &bodydata)
+			err = json.Unmarshal([]byte(respBody), &bodydata)
 			if err != nil {
 				err = fmt.Errorf("%s", string(respBody))
 				c.logger.Error("failed-to-get-application-summary", err, lager.Data{"appID": appID})
@@ -105,12 +100,7 @@ func (c *cfClient) SetAppInstances(appID string, num int) error {
 		c.logger.Error("set-app-instances-new-request", err)
 		return err
 	}
-	tokens, err := c.GetTokens()
-	if err != nil {
-		c.logger.Error("set-app-instances-get-tokens", err)
-		return err
-	}
-	req.Header.Set("Authorization", TokenTypeBearer+" "+tokens.AccessToken)
+	req.Header.Set("Authorization", TokenTypeBearer+" "+c.GetTokens().AccessToken)
 	req.Header.Set("Content-Type", "application/json")
 
 	var resp *http.Response
@@ -128,7 +118,7 @@ func (c *cfClient) SetAppInstances(appID string, num int) error {
 			return err
 		}
 		var bodydata map[string]interface{}
-		err = json.Unmarshal(respBody, &bodydata)
+		err = json.Unmarshal([]byte(respBody), &bodydata)
 		if err != nil {
 			err = fmt.Errorf("%s", string(respBody))
 			c.logger.Error("faileded-to-set-application-instances", err, lager.Data{"appID": appID})

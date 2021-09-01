@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 
 	"autoscaler/db"
 	"autoscaler/helpers"
@@ -97,7 +97,7 @@ func LoadConfig(reader io.Reader) (*Config, error) {
 		return nil, err
 	}
 
-	err = yaml.UnmarshalStrict(bytes, conf)
+	err = yaml.Unmarshal(bytes, conf)
 	if err != nil {
 		return nil, err
 	}

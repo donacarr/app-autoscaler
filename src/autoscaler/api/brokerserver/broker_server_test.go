@@ -25,7 +25,6 @@ var _ = Describe("BrokerServer", func() {
 			req, err := http.NewRequest(http.MethodGet, serverUrl.String(), nil)
 			Expect(err).NotTo(HaveOccurred())
 			rsp, err = httpClient.Do(req)
-			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should return 401", func() {
@@ -44,7 +43,6 @@ var _ = Describe("BrokerServer", func() {
 
 			req.SetBasicAuth("wrongusername", "wrongpassword")
 			rsp, err = httpClient.Do(req)
-			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should return 401", func() {
@@ -64,7 +62,6 @@ var _ = Describe("BrokerServer", func() {
 			req.SetBasicAuth(username, password)
 
 			rsp, err = httpClient.Do(req)
-			Expect(err).NotTo(HaveOccurred())
 		})
 
 		It("should get the catalog", func() {
@@ -89,7 +86,6 @@ var _ = Describe("BrokerServer", func() {
 			req.SetBasicAuth(username, password)
 
 			rsp, err = httpClient.Do(req)
-			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should get 404", func() {

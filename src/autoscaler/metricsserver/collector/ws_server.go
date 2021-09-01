@@ -4,11 +4,10 @@ import (
 	"autoscaler/healthendpoint"
 	"autoscaler/models"
 	"fmt"
-	"os"
 	"time"
 
 	"code.cloudfoundry.org/cfhttp"
-	"code.cloudfoundry.org/go-loggregator/v8/rpc/loggregator_v2"
+	"code.cloudfoundry.org/go-loggregator/rpc/loggregator_v2"
 	"code.cloudfoundry.org/lager"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/http_server"
@@ -16,16 +15,12 @@ import (
 
 func NewWSServer(logger lager.Logger, tls models.TLSCerts, port int, keepAlive time.Duration, envelopeChannels []chan *loggregator_v2.Envelope, httpStatusCollector healthendpoint.HTTPStatusCollector) (ifrit.Runner, error) {
 	wsHandler := NewWSMessageHandler(logger.Session("ws_handler"), envelopeChannels, keepAlive)
-	var addr string
-	if os.Getenv("APP_AUTOSCALER_TEST_RUN") == "true" {
-		addr = fmt.Sprintf("localhost:%d", port)
-	} else {
-		addr = fmt.Sprintf("0.0.0.0:%d", port)
-	}
+	addr := fmt.Sprintf("0.0.0.0:%d", port)
 
 	var runner ifrit.Runner
 	if (tls.KeyFile == "") || (tls.CertFile == "") {
 		runner = http_server.New(addr, wsHandler)
+
 	} else {
 		tlsConfig, err := cfhttp.NewTLSConfig(tls.CertFile, tls.KeyFile, tls.CACertFile)
 		if err != nil {

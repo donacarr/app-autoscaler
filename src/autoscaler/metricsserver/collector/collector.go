@@ -13,9 +13,6 @@ import (
 	"code.cloudfoundry.org/lager"
 )
 
-type MetricQueryFunc func(appID string, instanceIndex int, name string,
-	start, end int64, order db.OrderType) ([]*models.AppInstanceMetric, error)
-
 type MetricCollector interface {
 	Start()
 	Stop()
@@ -120,6 +117,7 @@ func (c *metricCollector) refreshApps() {
 		}
 	}
 	c.mLock.Unlock()
+
 }
 
 func (c *metricCollector) Stop() {
@@ -214,7 +212,9 @@ func (c *metricCollector) saveMetrics() {
 		case <-ticker.C():
 			if c.PersistMetrics && len(metrics) > 0 {
 				go func(instancemetricsDb db.InstanceMetricsDB, metrics []*models.AppInstanceMetric) {
-					_ = instancemetricsDb.SaveMetricsInBulk(metrics)
+					instancemetricsDb.SaveMetricsInBulk(metrics)
+					metrics = nil
+					return
 				}(c.instancemetricsDb, metrics)
 				metrics = nil
 			}

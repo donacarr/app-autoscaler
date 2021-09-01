@@ -13,11 +13,11 @@ import (
 
 	"code.cloudfoundry.org/cfhttp"
 	"code.cloudfoundry.org/lager/lagertest"
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenk/backoff"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
-	circuit "github.com/rubyist/circuitbreaker"
+	"github.com/rubyist/circuitbreaker"
 )
 
 var _ = Describe("Evaluator", func() {
@@ -27,20 +27,20 @@ var _ = Describe("Evaluator", func() {
 		triggerChan        chan []*models.Trigger
 		scalingEngine      *ghttp.Server
 		evaluator          *Evaluator
-		testAppId          = "testAppId"
-		testMetricType     = "testMetricType"
-		testMetricUnit     = "testMetricUnit"
+		testAppId          string = "testAppId"
+		testMetricType     string = "testMetricType"
+		testMetricUnit     string = "testMetricUnit"
 		urlPath            string
-		breachDurationSecs = 30
+		breachDurationSecs int = 30
 		queryAppMetrics    aggregator.QueryAppMetricsFunc
 		getBreaker         func(string) *circuit.Breaker
 		setCoolDownExpired func(string, int64)
 		cbEventChan        <-chan circuit.BreakerEvent
 		cooldownExpired    map[string]int64
-		fakeTime           = time.Now()
-		lock               = &sync.Mutex{}
+		fakeTime           time.Time   = time.Now()
+		lock               *sync.Mutex = &sync.Mutex{}
 		scalingResult      *models.AppScalingResult
-		triggerArrayGT     = []*models.Trigger{{
+		triggerArrayGT     []*models.Trigger = []*models.Trigger{{
 			AppId:           testAppId,
 			MetricType:      testMetricType,
 			CoolDownSeconds: 300,
@@ -48,7 +48,7 @@ var _ = Describe("Evaluator", func() {
 			Operator:        ">",
 			Adjustment:      "+1",
 		}}
-		triggerArrayGE = []*models.Trigger{{
+		triggerArrayGE []*models.Trigger = []*models.Trigger{{
 			AppId:           testAppId,
 			MetricType:      testMetricType,
 			CoolDownSeconds: 300,
@@ -56,7 +56,7 @@ var _ = Describe("Evaluator", func() {
 			Operator:        ">=",
 			Adjustment:      "+1",
 		}}
-		triggerArrayLT = []*models.Trigger{{
+		triggerArrayLT []*models.Trigger = []*models.Trigger{{
 			AppId:                 testAppId,
 			MetricType:            testMetricType,
 			BreachDurationSeconds: breachDurationSecs,
@@ -65,7 +65,7 @@ var _ = Describe("Evaluator", func() {
 			Operator:              "<",
 			Adjustment:            "-1",
 		}}
-		triggerArrayLE = []*models.Trigger{{
+		triggerArrayLE []*models.Trigger = []*models.Trigger{{
 			AppId:                 testAppId,
 			MetricType:            testMetricType,
 			BreachDurationSeconds: breachDurationSecs,
@@ -96,7 +96,7 @@ var _ = Describe("Evaluator", func() {
 			Operator:              "<=",
 			Adjustment:            "-1",
 		}
-		triggerArrayMultipleTriggers = []*models.Trigger{&firstTrigger, &secondTrigger}
+		triggerArrayMultipleTriggers []*models.Trigger = []*models.Trigger{&firstTrigger, &secondTrigger}
 	)
 	BeforeEach(func() {
 		logger = lagertest.NewTestLogger("Evaluator-test")

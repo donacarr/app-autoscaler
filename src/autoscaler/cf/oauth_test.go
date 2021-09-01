@@ -20,26 +20,13 @@ type userScope struct {
 	Scope []string `json:"scope"`
 }
 
-type roles struct {
-	Pagination struct {
-		Total int `json:"total_results"`
-	} `json:"pagination"`
-}
-
-type app struct {
-	Relationships struct {
-		Space struct {
-			Data struct {
-				GUID string `json:"guid"`
-			} `json:"data"`
-		} `json:"space"`
-	} `json:"relationships"`
+type spaceDeveoper struct {
+	Total int `json:"total_results"`
 }
 
 const (
 	TEST_USER_TOKEN = "bearer test-user-token"
 	TEST_APP_ID     = "test-app-id"
-	TEST_SPACE_ID   = "test-space-id"
 	TEST_USER_ID    = "test-user-id"
 )
 
@@ -56,18 +43,18 @@ var (
 	fakeCCServer    *ghttp.Server
 	fakeTokenServer *ghttp.Server
 
+	ccInfoStatus   int
+	ccInfoResponse Tokens
+
 	userInfoStatus   int
 	userInfoResponse userInfo
 
 	userScopeStatus   int
 	userScopeResponse userScope
 
-	appStatus       int
-	appResponse     app
-	appsPathMatcher *regexp.Regexp
-
-	rolesStatus   int
-	rolesResponse roles
+	spaceDeveloperStatus      int
+	spaceDeveloperResponse    spaceDeveoper
+	spaceDeveloperPathMatcher *regexp.Regexp
 )
 
 var _ = Describe("Oauth", func() {
@@ -91,20 +78,14 @@ var _ = Describe("Oauth", func() {
 			ExpiresIn:   12000,
 		}))
 
-		appsPathMatcher, _ = regexp.Compile(`/v3/apps/[A-Za-z0-9\-]+`)
-		fakeCCServer.RouteToHandler(http.MethodGet, appsPathMatcher, ghttp.CombineHandlers(
-			ghttp.VerifyRequest("GET", "/v3/apps/"+TEST_APP_ID),
-			ghttp.RespondWithJSONEncodedPtr(&appStatus, &appResponse)))
-
-		fakeCCServer.RouteToHandler(http.MethodGet, "/v3/roles", ghttp.CombineHandlers(
-			ghttp.VerifyRequest("GET", "/v3/roles", "types=space_developer&space_guids="+TEST_SPACE_ID+"&user_guids="+TEST_USER_ID),
-			ghttp.RespondWithJSONEncodedPtr(&rolesStatus, &rolesResponse)))
+		spaceDeveloperPathMatcher, _ = regexp.Compile("/v2/users/[A-Za-z0-9\\-]+/spaces")
+		fakeCCServer.RouteToHandler(http.MethodGet, spaceDeveloperPathMatcher, ghttp.RespondWithJSONEncodedPtr(&spaceDeveloperStatus, &spaceDeveloperResponse))
 
 		conf = &CFConfig{}
 		conf.API = fakeCCServer.URL()
 		logger = lagertest.NewTestLogger("oauth-test")
 		cfc = NewCFClient(conf, logger, clock.NewClock())
-		err = cfc.Login()
+		cfc.Login()
 	})
 
 	AfterEach(func() {
@@ -176,95 +157,27 @@ var _ = Describe("Oauth", func() {
 			})
 		})
 
-		Context("apps endpoint returns non-200 and non-401 status code", func() {
+		Context("space developer check endpoint returns non-200 status code", func() {
 			BeforeEach(func() {
 				userInfoStatus = http.StatusOK
 				userInfoResponse = userInfo{
 					UserId: TEST_USER_ID,
 				}
-				appStatus = http.StatusBadRequest
+				spaceDeveloperStatus = http.StatusBadRequest
 			})
 			It("should error", func() {
 				Expect(err).To(HaveOccurred())
-				Expect(err).To(MatchError("Failed to get app, statusCode : 400"))
+				Expect(err).To(MatchError("Failed to get space developer permission, statusCode : 400"))
 			})
 		})
 
-		Context("apps endpoint returns non-200 and non-401 status code", func() {
+		Context("space developer check endpoint returns non json response", func() {
 			BeforeEach(func() {
 				userInfoStatus = http.StatusOK
 				userInfoResponse = userInfo{
 					UserId: TEST_USER_ID,
 				}
-				appStatus = http.StatusUnauthorized
-			})
-			It("should error", func() {
-				Expect(err).To(HaveOccurred())
-				Expect(err).To(MatchError("Unauthorized"))
-			})
-		})
-
-		Context("apps endpoint returns non json response", func() {
-			BeforeEach(func() {
-				userInfoStatus = http.StatusOK
-				userInfoResponse = userInfo{
-					UserId: TEST_USER_ID,
-				}
-				fakeCCServer.RouteToHandler(http.MethodGet, appsPathMatcher, ghttp.RespondWith(http.StatusOK, "non-json-response"))
-
-			})
-			It("should error", func() {
-				Expect(err).To(HaveOccurred())
-			})
-		})
-
-		Context("roles endpoint returns non-200 and non-401 status code", func() {
-			BeforeEach(func() {
-				userInfoStatus = http.StatusOK
-				userInfoResponse = userInfo{
-					UserId: TEST_USER_ID,
-				}
-				appStatus = http.StatusOK
-				appResponse = app{}
-				appResponse.Relationships.Space.Data.GUID = TEST_SPACE_ID
-
-				rolesStatus = http.StatusBadRequest
-			})
-			It("should error", func() {
-				Expect(err).To(HaveOccurred())
-				Expect(err).To(MatchError("Failed to get roles, statusCode : 400"))
-			})
-		})
-
-		Context("roles endpoint returns 401 status code", func() {
-			BeforeEach(func() {
-				userInfoStatus = http.StatusOK
-				userInfoResponse = userInfo{
-					UserId: TEST_USER_ID,
-				}
-				appStatus = http.StatusOK
-				appResponse = app{}
-				appResponse.Relationships.Space.Data.GUID = TEST_SPACE_ID
-
-				rolesStatus = http.StatusUnauthorized
-			})
-			It("should error", func() {
-				Expect(err).To(HaveOccurred())
-				Expect(err).To(MatchError("Unauthorized"))
-			})
-		})
-
-		Context("roles endpoint returns non json response", func() {
-			BeforeEach(func() {
-				userInfoStatus = http.StatusOK
-				userInfoResponse = userInfo{
-					UserId: TEST_USER_ID,
-				}
-				appStatus = http.StatusOK
-				appResponse = app{}
-				appResponse.Relationships.Space.Data.GUID = TEST_SPACE_ID
-
-				fakeCCServer.RouteToHandler(http.MethodGet, "/v3/roles", ghttp.RespondWith(http.StatusOK, "non-json-response"))
+				fakeCCServer.RouteToHandler(http.MethodGet, spaceDeveloperPathMatcher, ghttp.RespondWith(http.StatusOK, "non-json-response"))
 
 			})
 			It("should error", func() {
@@ -278,12 +191,11 @@ var _ = Describe("Oauth", func() {
 				userInfoResponse = userInfo{
 					UserId: TEST_USER_ID,
 				}
-				appStatus = http.StatusOK
-				appResponse = app{}
-				appResponse.Relationships.Space.Data.GUID = TEST_SPACE_ID
 
-				rolesStatus = http.StatusOK
-				rolesResponse = roles{}
+				spaceDeveloperStatus = http.StatusOK
+				spaceDeveloperResponse = spaceDeveoper{
+					Total: 0,
+				}
 
 			})
 			It("should return false", func() {
@@ -298,13 +210,11 @@ var _ = Describe("Oauth", func() {
 				userInfoResponse = userInfo{
 					UserId: TEST_USER_ID,
 				}
-				appStatus = http.StatusOK
-				appResponse = app{}
-				appResponse.Relationships.Space.Data.GUID = TEST_SPACE_ID
 
-				rolesStatus = http.StatusOK
-				rolesResponse = roles{}
-				rolesResponse.Pagination.Total = 2
+				spaceDeveloperStatus = http.StatusOK
+				spaceDeveloperResponse = spaceDeveoper{
+					Total: 1,
+				}
 
 			})
 			It("should return true", func() {

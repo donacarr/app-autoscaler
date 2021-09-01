@@ -10,11 +10,11 @@ import (
 var _ = Describe("Routes", func() {
 
 	var (
-		testAppId      = "testAppId"
-		testScheduleId = "testScheduleId"
-		testMetricType = "testMetricType"
-		testInstanceId = "testInstanceId"
-		testBindingId  = "testBindingId"
+		testAppId      string = "testAppId"
+		testScheduleId string = "testScheduleId"
+		testMetricType string = "testMetricType"
+		testInstanceId string = "testInstanceId"
+		testBindingId  string = "testBindingId"
 	)
 	Describe("MetricsCollectorRoutes", func() {
 		Context("GetMetricHistoriesRoute", func() {

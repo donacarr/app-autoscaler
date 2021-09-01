@@ -5,6 +5,7 @@ import (
 	. "autoscaler/eventgenerator/config"
 	"autoscaler/helpers"
 	"autoscaler/models"
+
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -194,7 +195,7 @@ defaultBreachDurationSecs: 600
 			})
 
 			It("returns an error", func() {
-				Expect(err).To(MatchError(MatchRegexp(".*field level not found in type config.Config*")))
+				Expect(err).To(MatchError(MatchRegexp(".*did not find expected <document start>.*")))
 			})
 		})
 		Context("with partial config", func() {
@@ -216,7 +217,7 @@ defaultBreachDurationSecs: 600
 
 			It("returns default values", func() {
 				Expect(err).NotTo(HaveOccurred())
-				Expect(conf.Aggregator.PolicyPollerInterval).To(Equal(DefaultPolicyPollerInterval))
+				Expect(conf.Aggregator.PolicyPollerInterval).To(Equal(time.Duration(DefaultPolicyPollerInterval)))
 
 				Expect(err).NotTo(HaveOccurred())
 				Expect(conf).To(Equal(&Config{

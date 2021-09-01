@@ -12,12 +12,15 @@ const (
 	defaultExpireCheckInterval = 30 * time.Second
 )
 
+
 type Limiter interface {
 	ExceedsLimit(string) bool
 }
 
 type RateLimiter struct {
-	store Store
+	duration time.Duration
+	store    Store
+	logger   lager.Logger
 }
 
 func DefaultRateLimiter(maxAmount int, validDuration time.Duration, logger lager.Logger) *RateLimiter {
@@ -31,9 +34,10 @@ func NewRateLimiter(bucketCapacity int, maxAmount int, validDuration time.Durati
 }
 
 func (r *RateLimiter) ExceedsLimit(key string) bool {
-	if err := r.store.Increment(key); err != nil {
+	if  err := r.store.Increment(key); err != nil {
 		return true
 	}
 
 	return false
 }
+

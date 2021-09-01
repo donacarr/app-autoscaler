@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/lager"
-	circuit "github.com/rubyist/circuitbreaker"
+	"github.com/rubyist/circuitbreaker"
 )
 
 var validOperators = []string{">", ">=", "<", "<="}
@@ -138,21 +138,16 @@ func (e *Evaluator) doEvaluate(triggerArray []*models.Trigger) {
 				if appBreaker.Tripped() {
 					e.logger.Info("circuit-tripped", lager.Data{"appId": trigger.AppId, "consecutiveFailures": appBreaker.ConsecFailures()})
 				}
-				err = appBreaker.Call(func() error {
+				appBreaker.Call(func() error {
 					return e.sendTriggerAlarm(trigger)
 				}, 0)
-				if err != nil {
-					e.logger.Error("circuit-alarm-failed", err, lager.Data{"appId": trigger.AppId})
-				}
 			} else {
-				err = e.sendTriggerAlarm(trigger)
-				if err != nil {
-					e.logger.Error("circuit-alarm-failed", err, lager.Data{"appId": trigger.AppId})
-				}
+				e.sendTriggerAlarm(trigger)
 			}
 			return
 		}
 	}
+
 }
 
 func (e *Evaluator) retrieveAppMetrics(trigger *models.Trigger) ([]*models.AppMetric, error) {
@@ -221,8 +216,8 @@ func (e *Evaluator) sendTriggerAlarm(trigger *models.Trigger) error {
 	err = fmt.Errorf("Got %d when sending trigger alarm", resp.StatusCode)
 	e.logger.Error("failed-send-trigger-alarm", err, lager.Data{"trigger": trigger, "responseBody": string(respBody)})
 	return err
-}
 
+}
 func (e *Evaluator) isValidOperator(operator string) bool {
 	for _, o := range validOperators {
 		if o == operator {

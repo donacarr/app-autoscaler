@@ -9,21 +9,21 @@ import (
 
 	"time"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 const (
-	DefaultShardID            = "CF_AUTOSCALER"
-	DefaultLoggingLevel       = "info"
-	DefaultAppRefreshInterval = 60 * time.Second
-	DefaultHandshakeTimeout   = 500 * time.Millisecond
-	DefaultKeepAliveInterval  = 5 * time.Second
-	DefaultNozzleCount        = 3
-	DefaultEnvelopChanSize    = 500
-	DefaultEmitterBufferSize  = 500
-	DefaultMaxSetupRetryCount = 10
-	DefaultMaxCloseRetryCount = 10
-	DefaultRetryDelay         = 10 * time.Second
+	DefaultShardID                          = "CF_AUTOSCALER"
+	DefaultLoggingLevel                     = "info"
+	DefaultAppRefreshInterval time.Duration = 60 * time.Second
+	DefaultHandshakeTimeout   time.Duration = 500 * time.Millisecond
+	DefaultKeepAliveInterval  time.Duration = 5 * time.Second
+	DefaultNozzleCount                      = 3
+	DefaultEnvelopChanSize                  = 500
+	DefaultEmitterBufferSize                = 500
+	DefaultMaxSetupRetryCount               = 10
+	DefaultMaxCloseRetryCount               = 10
+	DefaultRetryDelay                       = 10 * time.Second
 )
 
 type AppManagerConfig struct {
@@ -82,7 +82,7 @@ func LoadConfig(bytes []byte) (*Config, error) {
 		},
 	}
 
-	err := yaml.UnmarshalStrict(bytes, conf)
+	err := yaml.Unmarshal(bytes, conf)
 	if err != nil {
 		return nil, err
 	}

@@ -4,67 +4,63 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class SynchronizeResult {
 
-  @JsonProperty(value = "createCount")
-  private Integer createCount;
+	@JsonProperty(value = "createCount")
+	private Integer createCount;
+	@JsonProperty(value = "updateCount")
+	private Integer updateCount;
+	@JsonProperty(value = "deleteCount")
+	private Integer deleteCount;
 
-  @JsonProperty(value = "updateCount")
-  private Integer updateCount;
+	public SynchronizeResult() {
+	}
 
-  @JsonProperty(value = "deleteCount")
-  private Integer deleteCount;
+	public SynchronizeResult(Integer createCount, Integer updateCount, Integer deleteCount) {
+		super();
+		this.createCount = createCount;
+		this.updateCount = updateCount;
+		this.deleteCount = deleteCount;
+	}
 
-  public SynchronizeResult() {}
+	public Integer getCreateCount() {
+		return createCount;
+	}
 
-  public SynchronizeResult(Integer createCount, Integer updateCount, Integer deleteCount) {
-    super();
-    this.createCount = createCount;
-    this.updateCount = updateCount;
-    this.deleteCount = deleteCount;
-  }
+	public void setCreateCount(Integer createCount) {
+		this.createCount = createCount;
+	}
 
-  public Integer getCreateCount() {
-    return createCount;
-  }
+	public Integer getUpdateCount() {
+		return updateCount;
+	}
 
-  public void setCreateCount(Integer createCount) {
-    this.createCount = createCount;
-  }
+	public void setUpdateCount(Integer updateCount) {
+		this.updateCount = updateCount;
+	}
 
-  public Integer getUpdateCount() {
-    return updateCount;
-  }
+	public Integer getDeleteCount() {
+		return deleteCount;
+	}
 
-  public void setUpdateCount(Integer updateCount) {
-    this.updateCount = updateCount;
-  }
+	public void setDeleteCount(Integer deleteCount) {
+		this.deleteCount = deleteCount;
+	}
 
-  public Integer getDeleteCount() {
-    return deleteCount;
-  }
+	@Override
+	public boolean equals(Object o) {
+		if (this == o)
+			return true;
+		if (o == null || getClass() != o.getClass())
+			return false;
 
-  public void setDeleteCount(Integer deleteCount) {
-    this.deleteCount = deleteCount;
-  }
+		SynchronizeResult that = (SynchronizeResult) o;
+		if (!createCount.equals(that.createCount))
+			return false;
+		if (!updateCount.equals(that.updateCount))
+			return false;
+		if (!deleteCount.equals(that.deleteCount))
+			return false;
+		return true;
 
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
+	}
 
-    SynchronizeResult that = (SynchronizeResult) o;
-    if (!createCount.equals(that.createCount)) {
-      return false;
-    }
-    if (!updateCount.equals(that.updateCount)) {
-      return false;
-    }
-    if (!deleteCount.equals(that.deleteCount)) {
-      return false;
-    }
-    return true;
-  }
 }
