@@ -159,7 +159,7 @@ func (c *cfClient) getSpaceDeveloperPermissionEndpoint(userId string, appId stri
 	parameters := url.Values{}
 	parameters.Add("app_guid", appId)
 	parameters.Add("developer_guid", userId)
-	spaceDeveloperPermissionEndpoint := c.conf.API + "/v2/users/" + userId + "/spaces?" + parameters.Encode()
+	spaceDeveloperPermissionEndpoint := c.conf.API + "/v2/users/" + userId + "/spaces?q=app_guid:" + appId + "&q=developer_guid:" + userId
 	return spaceDeveloperPermissionEndpoint
 }
 
